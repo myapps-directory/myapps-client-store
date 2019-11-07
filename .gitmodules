@@ -1,0 +1,3 @@
+[submodule "ola/common"]
+	path = ola/common
+	url = git@github.com:vipalade/ola-common.git

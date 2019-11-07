@@ -1,3 +1,10 @@
+# Build
+.kdev4/
+.vscode/
+build/
+*.kdev4
+.vs/
+
 # Prerequisites
 *.d
 
