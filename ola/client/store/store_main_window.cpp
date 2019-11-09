@@ -38,10 +38,7 @@ void MainWindow::setUser(const std::string& _user)
 
 void MainWindow::start()
 {
-    this->show();
 }
-
-
 
 void MainWindow::onOffline(bool _b)
 {

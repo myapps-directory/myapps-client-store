@@ -14,6 +14,8 @@
 #include <windows.h>
 
 #include "store_main_window.hpp"
+#include "DarkStyle.h"
+#include "framelesswindow.h"
 
 #include "solid/frame/manager.hpp"
 #include "solid/frame/scheduler.hpp"
@@ -184,16 +186,25 @@ int main(int argc, char* argv[])
 
     CallPool<void()>     cwp{WorkPoolConfiguration(), 1};
     frame::aio::Resolver resolver(cwp);
+    
+    client::store::MainWindow* pmain_window = new client::store::MainWindow;
+    FramelessWindow framelessWindow;
+    //framelessWindow.setWindowState(Qt::WindowFullScreen);
+    //framelessWindow.setWindowTitle("test title");
+    framelessWindow.setWindowIcon(app.style()->standardIcon(QStyle::SP_DesktopIcon));
 
-    client::store::MainWindow main_window;
-    Engine                    engine(main_window, front_rpc_service, params);
+    Engine engine(*pmain_window, front_rpc_service, params);
 
     aioscheduler.start(1);
 
-    prepare_application();
+    app.setStyle(new DarkStyle);
 
-    main_window.start();
-
+    framelessWindow.setContent(pmain_window);
+    
+    pmain_window->start();
+    framelessWindow.setWindowTitle("Store");
+    framelessWindow.show();
+    
     front_configure_service(engine, params, front_rpc_service, aioscheduler, resolver);
 
     const int rv = app.exec();
