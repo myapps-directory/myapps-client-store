@@ -154,6 +154,7 @@
           <widget class="QToolButton" name="minimizeButton">
            <property name="font">
             <font>
+             <family>Marlett</family>
              <weight>75</weight>
              <bold>true</bold>
             </font>
@@ -161,11 +162,11 @@
            <property name="styleSheet">
             <string notr="true">#minimizeButton{
   background-color:none;
+  color: rgb(255,255,255);
   border:none;
   width:16px;
   height:16px;
   padding:4px;
-  image:url(:/images/icon_window_minimize.png);
 }
 #minimizeButton:hover{
   background-color:palette(alternate-base);
@@ -175,20 +176,25 @@
 }</string>
            </property>
            <property name="text">
-            <string/>
+            <string>q</string>
            </property>
           </widget>
          </item>
          <item>
           <widget class="QToolButton" name="restoreButton">
+           <property name="font">
+            <font>
+             <family>Marlett</family>
+            </font>
+           </property>
            <property name="styleSheet">
             <string notr="true">#restoreButton{
   background-color:none;
+  color: rgb(255,255,255);
   border:none;
   width:16px;
   height:16px;
   padding:4px;
-  image:url(:/images/icon_window_restore.png);
 }
 #restoreButton:hover{
   background-color:palette(alternate-base);
@@ -198,20 +204,25 @@
 }</string>
            </property>
            <property name="text">
-            <string/>
+            <string>2</string>
            </property>
           </widget>
          </item>
          <item>
           <widget class="QToolButton" name="maximizeButton">
+           <property name="font">
+            <font>
+             <family>Marlett</family>
+            </font>
+           </property>
            <property name="styleSheet">
             <string notr="true">#maximizeButton{
   background-color:none;
+  color: rgb(255,255,255);
   border:none;
   width:16px;
   height:16px;
   padding:4px;
-  image:url(:/images/icon_window_maximize.png);
 }
 #maximizeButton:hover{
   background-color:palette(alternate-base);
@@ -221,7 +232,7 @@
 }</string>
            </property>
            <property name="text">
-            <string/>
+            <string>1</string>
            </property>
           </widget>
          </item>
@@ -234,11 +245,13 @@
              <weight>7</weight>
              <italic>false</italic>
              <bold>false</bold>
+             <kerning>true</kerning>
             </font>
            </property>
            <property name="styleSheet">
             <string notr="true">#closeButton{
   font: 57 8pt &quot;Marlett&quot;;
+  color: rgb(255,255,255);
   background-color:none;
   border:none;
   width:16px;
