@@ -51,8 +51,12 @@ MainWindow::MainWindow(QWidget* parent)
     pimpl_->store_form_.setupUi(this);
     pimpl_->list_form_.setupUi(pimpl_->store_form_.listWidget);
     pimpl_->list_form_.listView->setFlow(QListView::Flow::LeftToRight);
+    pimpl_->list_form_.listView->setViewMode(QListView::IconMode);
+    pimpl_->list_form_.listView->setMovement(QListView::Static);
+    pimpl_->list_form_.listView->setResizeMode(QListView::Adjust);
+    pimpl_->list_form_.listView->setGridSize(QSize(200, 100));
+    pimpl_->list_form_.listView->setWordWrap(true);
     pimpl_->list_form_.listView->setWrapping(true);
-    //pimpl_->list_form_.listView->setGridSize(QSize(1000,10));
     pimpl_->list_form_.listView->setModel(&pimpl_->list_model_);
     pimpl_->list_form_.listView->setItemDelegate(&pimpl_->list_delegate_);
     setWindowFlags(Qt::Drawer);
