@@ -1,11 +1,11 @@
 #pragma once
 
 #include "solid/system/pimpl.hpp"
+#include <QAbstractListModel>
 #include <QMainWindow>
+#include <QStyledItemDelegate>
 #include <functional>
 #include <string>
-#include <QAbstractListModel>
-#include <QStyledItemDelegate>
 
 namespace ola {
 namespace client {
@@ -26,19 +26,26 @@ public:
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override
     {
         if (role == Qt::DisplayRole) {
-            return QString("Row%1").arg(index.row() + 1);
+            return QString("Item %1").arg(index.row() + 1);
         }
         return QVariant();
+    }
+
+    Qt::ItemFlags flags(const QModelIndex& index) const override {
+        if (!index.isValid())
+            return Qt::ItemIsEnabled;
+
+        return QAbstractListModel::flags(index) | Qt::ItemIsSelectable;
     }
 };
 
 class ItemDelegate : public QStyledItemDelegate {
     Q_OBJECT
 public:
-    void     paint(QPainter* painter, const QStyleOptionViewItem& option,
-            const QModelIndex& index) const override;
-    QSize    sizeHint(const QStyleOptionViewItem& option,
-           const QModelIndex&                     index) const override;
+    void  paint(QPainter* painter, const QStyleOptionViewItem& option,
+         const QModelIndex& index) const override;
+    QSize sizeHint(const QStyleOptionViewItem& option,
+        const QModelIndex&                     index) const override;
 };
 
 class MainWindow : public QMainWindow {
@@ -65,6 +72,6 @@ private:
     struct Data;
     solid::PimplT<Data> pimpl_;
 };
-} //namespace auth
+} // namespace store
 } //namespace client
 } //namespace ola

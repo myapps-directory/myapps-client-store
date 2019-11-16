@@ -24,24 +24,33 @@ struct MainWindow::Data {
 void ItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
     const QModelIndex& index) const
 {
-    painter->save();
+    if (index.data().canConvert<QString>()) {
+        const QString text = qvariant_cast<QString>(index.data());
 
-    painter->setRenderHint(QPainter::Antialiasing, true);
-    if (option.state & QStyle::State_Selected) {
-        painter->fillRect(option.rect, option.palette.highlight());
+        painter->save();
+
+        painter->setRenderHint(QPainter::Antialiasing, true);
+        if (option.state & QStyle::State_Selected) {
+            painter->fillRect(option.rect, option.palette.highlight());
+        }else if (option.state & QStyle::State_MouseOver) {
+            painter->setPen(option.palette.highlight().color());
+            //painter->drawRect(QRect(option.rect.x(), option.rect.y(), option.rect.width()-1, option.rect.height()-1));
+        }
+
+        painter->setBrush(QBrush(QColor(index.row() % 255, 0, 0)));
+        painter->drawEllipse(option.rect);
+
+        painter->drawText(QPoint(option.rect.x() + option.rect.width() / 2, option.rect.y() + option.rect.height() / 2), text);
+
+        painter->restore();
+    } else {
+        QStyledItemDelegate::paint(painter, option, index);
     }
-    
-    painter->setBrush(QBrush(QColor(index.row() % 255, 0, 0)));
-    painter->drawEllipse(option.rect);
-
-    painter->drawText(QPoint(option.rect.x() + option.rect.width() / 2, option.rect.y() + option.rect.height() / 2), QString("Row%1").arg(index.row() + 1));
-
-    painter->restore();
 }
 QSize ItemDelegate::sizeHint(const QStyleOptionViewItem& option,
     const QModelIndex&                                   index) const
 {
-    return QSize(200,100);
+    return QSize(200, 100);
 }
 
 MainWindow::MainWindow(QWidget* parent)
@@ -50,6 +59,7 @@ MainWindow::MainWindow(QWidget* parent)
 {
     pimpl_->store_form_.setupUi(this);
     pimpl_->list_form_.setupUi(pimpl_->store_form_.listWidget);
+    pimpl_->list_form_.listView->viewport()->setAttribute(Qt::WA_Hover, true);
     pimpl_->list_form_.listView->setFlow(QListView::Flow::LeftToRight);
     pimpl_->list_form_.listView->setViewMode(QListView::IconMode);
     pimpl_->list_form_.listView->setMovement(QListView::Static);
