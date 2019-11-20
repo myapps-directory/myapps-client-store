@@ -26,6 +26,8 @@ if(${Qt5Widgets_FOUND})
         store_main_window.hpp
         framelesswindow.h
         framelesswindow.cpp
+        store_engine.cpp
+        store_engine.hpp
         DarkStyle.cpp
         DarkStyle.h
         windowdragger.h

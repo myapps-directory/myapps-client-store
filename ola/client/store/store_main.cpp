@@ -13,9 +13,10 @@
 #endif
 #include <windows.h>
 
-#include "store_main_window.hpp"
 #include "DarkStyle.h"
 #include "framelesswindow.h"
+#include "store_engine.hpp"
+#include "store_main_window.hpp"
 
 #include "solid/frame/manager.hpp"
 #include "solid/frame/scheduler.hpp"
@@ -36,11 +37,13 @@
 
 #include "ola/common/ola_front_protocol.hpp"
 
+#include "boost/filesystem.hpp"
 #include "boost/program_options.hpp"
 
 #include <QApplication>
-#include <QtGui>
 #include <QStyleFactory>
+#include <QTranslator>
+#include <QtGui>
 
 #include <signal.h>
 
@@ -56,6 +59,8 @@
 using namespace ola;
 using namespace solid;
 using namespace std;
+using namespace ola::client::store;
+namespace fs = boost::filesystem;
 
 using AioSchedulerT = frame::Scheduler<frame::aio::Reactor>;
 using SchedulerT    = frame::Scheduler<frame::Reactor>;
@@ -82,30 +87,83 @@ struct Parameters {
     bool parse(ULONG argc, PWSTR* argv);
 };
 
-struct Engine {
-    client::store::MainWindow&          main_window_;
-    frame::mprpc::ServiceT&             front_rpc_service_;
-    Parameters&                         params_;
-    frame::mprpc::RecipientId           local_recipient_id_;
-    std::shared_ptr<front::AuthRequest> front_auth_req_ptr_;
-    frame::mprpc::RecipientId           front_recipient_id_;
-    mutex                               mutex_;
+struct Authenticator {
+    using RecipientQueueT    = std::queue<frame::mprpc::RecipientId>;
+    using OnOnlineFunctionT  = std::function<void()>;
+    using OnOfflineFunctionT = std::function<void()>;
+    frame::mprpc::ServiceT& front_rpc_service_;
+    string                  path_prefix_;
+    atomic<bool>            running_      = true;
+    atomic<size_t>          active_count_ = 0;
+    mutex                   mutex_;
+    string                  user_;
+    string                  token_;
+    thread                  thread_;
+    RecipientQueueT         recipient_q_;
+    OnOnlineFunctionT       on_online_fnc_;
+    OnOfflineFunctionT      on_offline_fnc_;
 
-    Engine(
-        client::store::MainWindow& _main_window,
-        frame::mprpc::ServiceT&    _front_rpc_service,
-        Parameters&                _params)
-        : main_window_(_main_window)
-        , front_rpc_service_(_front_rpc_service)
-        , params_(_params)
+    Authenticator(
+        frame::mprpc::ServiceT& _front_rpc_service,
+        const string&           _path_prefix)
+        : front_rpc_service_(_front_rpc_service)
+        , path_prefix_(_path_prefix)
     {
+        on_online_fnc_  = []() {};
+        on_offline_fnc_ = []() {};
+    }
+
+    ~Authenticator() {
+        running_ = false;
+        if (thread_.joinable()) {
+            thread_.join();
+        }
+    }
+
+    fs::path authDataDirectoryPath() const
+    {
+        fs::path p = path_prefix_;
+        p /= "config";
+        return p;
+    }
+
+    fs::path authDataFilePath() const
+    {
+        return authDataDirectoryPath() / "auth.data";
+    }
+    bool loadAuth(string& _user, string& _token)
+    {
+        const auto path = authDataFilePath();
+        ifstream   ifs(path.generic_string());
+
+        if (ifs) {
+            getline(ifs, _user);
+            getline(ifs, _token);
+            try {
+                _token = ola::utility::base64_decode(_token);
+            } catch (std::exception& e) {
+                _user.clear();
+                _token.clear();
+            }
+        }
+        return !_user.empty() && !_token.empty();
+    }
+
+    void poll();
+
+    std::shared_ptr<front::AuthRequest> loadAuth()
+    {
+        string user, token;
+        if (loadAuth(user, token)) {
+            return make_shared<front::AuthRequest>(token);
+        } else {
+            return nullptr;
+        }
     }
 
     void onConnectionInit(frame::mprpc::ConnectionContext& _ctx);
     void onConnectionStart(frame::mprpc::ConnectionContext& _ctx);
     void onConnectionStop(frame::mprpc::ConnectionContext& _ctx);
-
-    void onAuthStart(const string& _user, const string& _pass);
 
     void onAuthResponse(
         frame::mprpc::ConnectionContext&      _rctx,
@@ -114,10 +172,10 @@ struct Engine {
         ErrorConditionT const&                _rerror);
 };
 
-void front_configure_service(Engine& _rengine, const Parameters& _params, frame::mprpc::ServiceT& _rsvc, AioSchedulerT& _rsch, frame::aio::Resolver& _rres);
+void front_configure_service(Authenticator& _rauth, const Parameters& _params, frame::mprpc::ServiceT& _rsvc, AioSchedulerT& _rsch, frame::aio::Resolver& _rres);
 
 //TODO: find a better name
-string envLogPathPrefix()
+string env_log_path_prefix()
 {
     const char* v = getenv("LOCALAPPDATA");
     if (v == nullptr) {
@@ -130,6 +188,25 @@ string envLogPathPrefix()
     string r = v;
     r += "\\OLA\\client";
     return r;
+}
+
+string env_config_path_prefix()
+{
+#ifdef SOLID_ON_WINDOWS
+    const char* v = getenv("APPDATA");
+    if (v == nullptr) {
+        v = getenv("LOCALAPPDATA");
+        if (v == nullptr) {
+            v = "c:";
+        }
+    }
+
+    string r = v;
+    r += "\\OLA";
+    return r;
+#else
+    return get_home_env() + "/.ola";
+#endif
 }
 
 void prepare_application();
@@ -168,44 +245,52 @@ int main(int argc, char* argv[])
         solid::log_start(std::cerr, params.dbg_modules);
     } else {
         solid::log_start(
-            (envLogPathPrefix() + "\\log\\auth").c_str(),
+            (env_log_path_prefix() + "\\log\\auth").c_str(),
             params.dbg_modules,
             params.dbg_buffered,
             3,
             1024 * 1024 * 64);
     }
 
-    QApplication app(argc, argv);
-
-    AioSchedulerT aioscheduler;
-
-    frame::Manager  manager;
-    frame::ServiceT service{manager};
-
+    QApplication           app(argc, argv);
+    AioSchedulerT          aioscheduler;
+    frame::Manager         manager;
+    frame::ServiceT        service{manager};
     frame::mprpc::ServiceT front_rpc_service{manager};
+    CallPool<void()>       cwp{WorkPoolConfiguration(), 1};
+    frame::aio::Resolver   resolver(cwp);
+    Authenticator          authenticator(front_rpc_service, env_config_path_prefix());
+    Engine                 engine(front_rpc_service);
+    FramelessWindow        frameless_window;
 
-    CallPool<void()>     cwp{WorkPoolConfiguration(), 1};
-    frame::aio::Resolver resolver(cwp);
-    
-    client::store::MainWindow* pmain_window = new client::store::MainWindow;
-    FramelessWindow framelessWindow;
-    //framelessWindow.setWindowState(Qt::WindowFullScreen);
-    //framelessWindow.setWindowTitle("test title");
-    framelessWindow.setWindowIcon(app.style()->standardIcon(QStyle::SP_DesktopIcon));
+    authenticator.on_offline_fnc_ = [&frameless_window]() {
+        frameless_window.setWindowTitle(QApplication::tr("Store - Offline"));
+    };
 
-    Engine engine(*pmain_window, front_rpc_service, params);
+    authenticator.on_online_fnc_ = [&frameless_window]() {
+        frameless_window.setWindowTitle(QApplication::tr("Store - Online"));
+    };
 
     aioscheduler.start(1);
 
+    //framelessWindow.setWindowState(Qt::WindowFullScreen);
     app.setStyle(new DarkStyle);
 
-    framelessWindow.setContent(pmain_window);
-    
-    pmain_window->start();
-    framelessWindow.setWindowTitle("Store");
-    framelessWindow.show();
-    
-    front_configure_service(engine, params, front_rpc_service, aioscheduler, resolver);
+    frameless_window.setWindowIcon(app.style()->standardIcon(QStyle::SP_DesktopIcon));
+    frameless_window.setContent(new client::store::MainWindow);
+    frameless_window.setWindowTitle(QApplication::tr("Store"));
+
+    front_configure_service(authenticator, params, front_rpc_service, aioscheduler, resolver);
+
+    frameless_window.show();
+    {
+        Configuration config;
+        config.language_       = "en-US";
+        config.os_             = "Windows10x86_64";
+        config.front_endpoint_ = params.front_endpoint;
+
+        engine.start(std::move(config));
+    }
 
     const int rv = app.exec();
     front_rpc_service.stop();
@@ -268,7 +353,7 @@ struct FrontSetup {
     }
 };
 
-void front_configure_service(Engine& _rengine, const Parameters& _params, frame::mprpc::ServiceT& _rsvc, AioSchedulerT& _rsch, frame::aio::Resolver& _rres)
+void front_configure_service(Authenticator& _rauth, const Parameters& _params, frame::mprpc::ServiceT& _rsvc, AioSchedulerT& _rsch, frame::aio::Resolver& _rres)
 {
     auto                        proto = front::ProtocolT::create();
     frame::mprpc::Configuration cfg(_rsch, proto);
@@ -278,19 +363,15 @@ void front_configure_service(Engine& _rengine, const Parameters& _params, frame:
     cfg.client.name_resolve_fnc = frame::mprpc::InternetResolverF(_rres, ola::front::default_port());
 
     cfg.client.connection_start_state     = frame::mprpc::ConnectionState::Passive;
-    cfg.pool_max_active_connection_count  = 1;
-    cfg.pool_max_pending_connection_count = 1;
+    cfg.pool_max_active_connection_count  = 2;
+    cfg.pool_max_pending_connection_count = 2;
 
-    {
-        auto connection_stop_lambda = [&_rengine](frame::mprpc::ConnectionContext& _ctx) {
-            _rengine.onConnectionStop(_ctx);
-        };
-        auto connection_start_lambda = [&_rengine](frame::mprpc::ConnectionContext& _ctx) {
-            _rengine.onConnectionStart(_ctx);
-        };
-        cfg.connection_stop_fnc         = std::move(connection_stop_lambda);
-        cfg.client.connection_start_fnc = std::move(connection_start_lambda);
-    }
+    cfg.connection_stop_fnc = [&_rauth](frame::mprpc::ConnectionContext& _rctx) {
+        _rauth.onConnectionStop(_rctx);
+    };
+    cfg.client.connection_start_fnc = [&_rauth](frame::mprpc::ConnectionContext& _rctx) {
+        _rauth.onConnectionStart(_rctx);
+    };
 
     if (_params.secure) {
         frame::mprpc::openssl::setup_client(
@@ -312,29 +393,7 @@ void front_configure_service(Engine& _rengine, const Parameters& _params, frame:
     _rsvc.createConnectionPool(_params.front_endpoint.c_str(), 1);
 }
 
-void Engine::onAuthStart(const string& _user, const string& _pass)
-{
-    //on gui thread
-    {
-        lock_guard<mutex> lock(mutex_);
-        front_auth_req_ptr_ = std::make_shared<front::AuthRequest>(_user, _pass);
-
-        if (!front_recipient_id_.empty()) {
-            auto lambda = [this](
-                              frame::mprpc::ConnectionContext&      _rctx,
-                              std::shared_ptr<front::AuthRequest>&  _rsent_msg_ptr,
-                              std::shared_ptr<front::AuthResponse>& _rrecv_msg_ptr,
-                              ErrorConditionT const&                _rerror) {
-                onAuthResponse(_rctx, _rsent_msg_ptr, _rrecv_msg_ptr, _rerror);
-            };
-            if (!front_rpc_service_.sendRequest(front_recipient_id_, front_auth_req_ptr_, lambda)) {
-                front_auth_req_ptr_.reset();
-            }
-        }
-    }
-}
-
-void Engine::onConnectionStart(frame::mprpc::ConnectionContext& _ctx)
+void Authenticator::onConnectionStart(frame::mprpc::ConnectionContext& _ctx)
 {
     auto req_ptr = std::make_shared<front::InitRequest>();
     auto lambda  = [this](
@@ -346,21 +405,65 @@ void Engine::onConnectionStart(frame::mprpc::ConnectionContext& _ctx)
             if (_rrecv_msg_ptr->error_ == 0) {
                 onConnectionInit(_rctx);
             } else {
-                cout << "ERROR initiating connection: version " << _rctx.peerVersionMajor() << '.' << _rctx.peerVersionMinor() << " error " << _rrecv_msg_ptr->error_ << ':' << _rrecv_msg_ptr->message_ << endl;
+                solid_log(logger, Error, "Initiating connection: version " << _rctx.peerVersionMajor() << '.' << _rctx.peerVersionMinor() << " error " << _rrecv_msg_ptr->error_ << ':' << _rrecv_msg_ptr->message_);
             }
         }
     };
 
     _ctx.service().sendRequest(_ctx.recipientId(), req_ptr, lambda);
 }
-
-void Engine::onConnectionInit(frame::mprpc::ConnectionContext& _ctx)
+void Authenticator::poll()
 {
-    main_window_.offlineSignal(false);
+    string user, token;
+    while (running_) {
+        this_thread::sleep_for(chrono::seconds(1));
+        if (loadAuth(user, token)) {
+            auto auth_ptr = make_shared<front::AuthRequest>(user, token);
+            auto lambda   = [this](
+                              frame::mprpc::ConnectionContext&      _rctx,
+                              std::shared_ptr<front::AuthRequest>&  _rsent_msg_ptr,
+                              std::shared_ptr<front::AuthResponse>& _rrecv_msg_ptr,
+                              ErrorConditionT const&                _rerror) {
+                if (!_rerror && _rrecv_msg_ptr->error_) {
+                    recipient_q_.pop();
+                    auto lambda = [this](
+                                      frame::mprpc::ConnectionContext&      _rctx,
+                                      std::shared_ptr<front::AuthRequest>&  _rsent_msg_ptr,
+                                      std::shared_ptr<front::AuthResponse>& _rrecv_msg_ptr,
+                                      ErrorConditionT const&                _rerror) {
+                        onAuthResponse(_rctx, _rsent_msg_ptr, _rrecv_msg_ptr, _rerror);
+                    };
+
+                    while (!recipient_q_.empty()) {
+                        front_rpc_service_.sendRequest(recipient_q_.front(), _rsent_msg_ptr, lambda);
+                    }
+                }
+
+                onAuthResponse(_rctx, _rsent_msg_ptr, _rrecv_msg_ptr, _rerror);
+            };
+            while (!recipient_q_.empty()) {
+                const auto err = front_rpc_service_.sendRequest(recipient_q_.front(), auth_ptr, lambda);
+                if (err) {
+                    recipient_q_.pop();
+                } else {
+                    return;
+                }
+            }
+        }
+    }
+}
+void Authenticator::onConnectionInit(frame::mprpc::ConnectionContext& _rctx)
+{
     {
         lock_guard<mutex> lock(mutex_);
-        front_recipient_id_ = _ctx.recipientId();
-        if (front_auth_req_ptr_) {
+        if (!recipient_q_.empty()) {
+            recipient_q_.emplace(_rctx.recipientId());
+            return;
+        }
+
+        auto auth_ptr = loadAuth();
+
+        if (auth_ptr) {
             auto lambda = [this](
                               frame::mprpc::ConnectionContext&      _rctx,
                               std::shared_ptr<front::AuthRequest>&  _rsent_msg_ptr,
@@ -368,47 +471,55 @@ void Engine::onConnectionInit(frame::mprpc::ConnectionContext& _ctx)
                               ErrorConditionT const&                _rerror) {
                 onAuthResponse(_rctx, _rsent_msg_ptr, _rrecv_msg_ptr, _rerror);
             };
-            if (!front_rpc_service_.sendRequest(front_recipient_id_, front_auth_req_ptr_, lambda)) {
-                front_auth_req_ptr_.reset();
+            front_rpc_service_.sendRequest(_rctx.recipientId(), auth_ptr, lambda);
+        } else {
+            recipient_q_.emplace(_rctx.recipientId());
+            if (thread_.joinable()) {
+                thread_.join();
             }
+            thread_ = std::thread(&Authenticator::poll, this);
         }
     }
 }
-void Engine::onConnectionStop(frame::mprpc::ConnectionContext& _ctx)
+void Authenticator::onConnectionStop(frame::mprpc::ConnectionContext& _rctx)
 {
-    main_window_.offlineSignal(true);
-    {
-        lock_guard<mutex> lock(mutex_);
-        if (front_recipient_id_ == _ctx.recipientId()) {
-            front_recipient_id_.clear();
+    if (_rctx.isConnectionActive()) {
+        if (active_count_.fetch_sub(1) == 1) {
+            on_offline_fnc_();
         }
     }
 }
 
-void Engine::onAuthResponse(
+void Authenticator::onAuthResponse(
     frame::mprpc::ConnectionContext&      _rctx,
     std::shared_ptr<front::AuthRequest>&  _rsent_msg_ptr,
     std::shared_ptr<front::AuthResponse>& _rrecv_msg_ptr,
     ErrorConditionT const&                _rerror)
 {
-    if (_rrecv_msg_ptr) {
+    if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
         solid_log(logger, Info, "AuthResponse: " << _rrecv_msg_ptr->error_ << " " << _rrecv_msg_ptr->message_);
-        if (_rrecv_msg_ptr->error_) {
+        _rctx.service().connectionNotifyEnterActiveState(_rctx.recipientId());
+        if (active_count_.fetch_add(1) == 0) {
+            on_online_fnc_();
         }
     } else {
         solid_log(logger, Info, "No AuthResponse");
-        //offline
+        lock_guard<mutex> lock(mutex_);
 
-        {
-            lock_guard<mutex> lock(mutex_);
-            front_auth_req_ptr_ = std::move(_rsent_msg_ptr);
+        recipient_q_.emplace(_rctx.recipientId());
+
+        if (recipient_q_.size() == 1) {
+            if (thread_.joinable()) {
+                thread_.join();
+            }
+            thread_ = std::thread(&Authenticator::poll, this);
         }
     }
 }
 
 void prepare_application()
 {
- #ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
     QSettings settings("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", QSettings::NativeFormat);
     if (settings.value("AppsUseLightTheme") == 0) {
         qApp->setStyle(QStyleFactory::create("Fusion"));

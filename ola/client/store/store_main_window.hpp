@@ -55,9 +55,6 @@ public:
     MainWindow(QWidget* parent = 0);
     ~MainWindow();
 
-    void setUser(const std::string& _user);
-
-    void start();
 signals:
     void closeSignal();
     void offlineSignal(bool);

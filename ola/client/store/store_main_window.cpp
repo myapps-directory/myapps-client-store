@@ -75,19 +75,11 @@ MainWindow::MainWindow(QWidget* parent)
 
     connect(this, SIGNAL(offlineSignal(bool)), this, SLOT(onOffline(bool)), Qt::QueuedConnection);
     connect(this, SIGNAL(closeSignal()), this, SLOT(close()), Qt::QueuedConnection);
+
+    pimpl_->store_form_.itemWidget->hide();
 }
 
 MainWindow::~MainWindow() {}
-
-void MainWindow::setUser(const std::string& _user)
-{
-    solid_log(logger, Info, "" << _user);
-}
-
-void MainWindow::start()
-{
-    pimpl_->store_form_.itemWidget->hide();
-}
 
 void MainWindow::onOffline(bool _b)
 {
