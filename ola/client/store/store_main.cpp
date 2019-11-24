@@ -113,7 +113,8 @@ struct Authenticator {
         on_offline_fnc_ = []() {};
     }
 
-    ~Authenticator() {
+    ~Authenticator()
+    {
         running_ = false;
         if (thread_.joinable()) {
             thread_.join();
@@ -261,6 +262,7 @@ int main(int argc, char* argv[])
     frame::aio::Resolver   resolver(cwp);
     Authenticator          authenticator(front_rpc_service, env_config_path_prefix());
     Engine                 engine(front_rpc_service);
+    MainWindow&            rmain_window = *(new MainWindow(engine));
     FramelessWindow        frameless_window;
 
     authenticator.on_offline_fnc_ = [&frameless_window]() {
@@ -268,7 +270,7 @@ int main(int argc, char* argv[])
     };
 
     authenticator.on_online_fnc_ = [&frameless_window]() {
-        frameless_window.setWindowTitle(QApplication::tr("Store - Online"));
+        frameless_window.setWindowTitle(QApplication::tr("Store"));
     };
 
     aioscheduler.start(1);
@@ -277,20 +279,33 @@ int main(int argc, char* argv[])
     app.setStyle(new DarkStyle);
 
     frameless_window.setWindowIcon(app.style()->standardIcon(QStyle::SP_DesktopIcon));
-    frameless_window.setContent(new client::store::MainWindow);
+    frameless_window.setContent(&rmain_window);
     frameless_window.setWindowTitle(QApplication::tr("Store"));
 
     front_configure_service(authenticator, params, front_rpc_service, aioscheduler, resolver);
 
-    frameless_window.show();
     {
         Configuration config;
         config.language_       = "en-US";
         config.os_             = "Windows10x86_64";
         config.front_endpoint_ = params.front_endpoint;
+        config.on_fetch_fnc_   = [&cwp, &rmain_window](
+                                   const size_t   _index,
+                                   const size_t   _fetch_count,
+                                   string&&       _uname,
+                                   string&&       _ucompany,
+                                   string&&       _ubrief,
+                                   vector<char>&& _uimage) {
+            cwp.push(
+                [_index, _fetch_count, &rmain_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), image = std::move(_uimage)]() {
+                    rmain_window.model().prepareAndPushItem(_index, _fetch_count, name, company, brief, image);
+                });
+        };
 
         engine.start(std::move(config));
     }
+
+    frameless_window.show();
 
     const int rv = app.exec();
     front_rpc_service.stop();
@@ -390,7 +405,7 @@ void front_configure_service(Authenticator& _rauth, const Parameters& _params, f
     }
 
     _rsvc.start(std::move(cfg));
-    _rsvc.createConnectionPool(_params.front_endpoint.c_str(), 1);
+    //_rsvc.createConnectionPool(_params.front_endpoint.c_str(), 1);
 }
 
 void Authenticator::onConnectionStart(frame::mprpc::ConnectionContext& _ctx)
