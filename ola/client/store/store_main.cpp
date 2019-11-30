@@ -262,8 +262,8 @@ int main(int argc, char* argv[])
     frame::aio::Resolver   resolver(cwp);
     Authenticator          authenticator(front_rpc_service, env_config_path_prefix());
     Engine                 engine(front_rpc_service);
-    MainWindow&            rmain_window = *(new MainWindow(engine));
     FramelessWindow        frameless_window;
+    MainWindow&            rmain_window = *(new MainWindow(engine, &frameless_window));
 
     authenticator.on_offline_fnc_ = [&frameless_window]() {
         frameless_window.setWindowTitle(QApplication::tr("Store - Offline"));
@@ -281,6 +281,7 @@ int main(int argc, char* argv[])
     frameless_window.setWindowIcon(app.style()->standardIcon(QStyle::SP_DesktopIcon));
     frameless_window.setContent(&rmain_window);
     frameless_window.setWindowTitle(QApplication::tr("Store"));
+   
 
     front_configure_service(authenticator, params, front_rpc_service, aioscheduler, resolver);
 
@@ -291,14 +292,22 @@ int main(int argc, char* argv[])
         config.front_endpoint_ = params.front_endpoint;
         config.on_fetch_fnc_   = [&cwp, &rmain_window](
                                    const size_t   _index,
-                                   const size_t   _fetch_count,
+                                   const size_t   _count,
                                    string&&       _uname,
                                    string&&       _ucompany,
                                    string&&       _ubrief,
                                    vector<char>&& _uimage) {
             cwp.push(
-                [_index, _fetch_count, &rmain_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), image = std::move(_uimage)]() {
-                    rmain_window.model().prepareAndPushItem(_index, _fetch_count, name, company, brief, image);
+                [_index, _count, &rmain_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), image = std::move(_uimage)]() {
+                    rmain_window.model().prepareAndPushItem(_index, _count, name, company, brief, image);
+                });
+        };
+        config.on_fetch_error_fnc_ = [&cwp, &rmain_window](
+                                   const size_t   _index,
+                                   const size_t   _count) {
+            cwp.push(
+                [_index, _count, &rmain_window]() {
+                    rmain_window.model().prepareAndPushItem(_index, _count);
                 });
         };
 

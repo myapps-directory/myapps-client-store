@@ -15,6 +15,7 @@ namespace client {
 namespace store {
 
 struct ListItem {
+    size_t  engine_index_ = -1;
     QString name_;
     QString company_;
     QString brief_;
@@ -31,9 +32,11 @@ class ListModel : public QAbstractListModel {
     std::deque<ListItem> item_dq_;
     int                  count_ = 0;
     std::mutex           mutex_;
-    std::deque<std::pair<size_t, ListItem>> push_item_dq_;
-    std::deque<std::pair<size_t, ListItem>> pop_item_dq_;
-    size_t                                  last_fetch_count_ = 0;
+    size_t                                  push_item_count_ = 0;
+    std::deque<ListItem> push_item_dq_;
+    std::deque<ListItem> pop_item_dq_;
+    size_t                                  fetch_count_ = 10;
+    size_t                                  engine_fetch_index_ = 0;
     mutable bool                            requested_more_   = false;
     size_t                                  request_more_index_ = 0;
 
@@ -48,11 +51,14 @@ public:
 
     void prepareAndPushItem(
         const size_t _index,
-        const size_t _fetch_count,
+        const size_t _count,
         const std::string&  _name,
         const std::string&  _company,
         const std::string&  _brief,
         const std::vector<char>& _image);
+    void prepareAndPushItem(
+        const size_t _index,
+        const size_t _count);
 signals:
     void newItemSignal();
     void numberPopulated(int number);
