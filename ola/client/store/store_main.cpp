@@ -296,10 +296,12 @@ int main(int argc, char* argv[])
                                    string&&       _uname,
                                    string&&       _ucompany,
                                    string&&       _ubrief,
-                                   vector<char>&& _uimage) {
+                                   vector<char>&& _uimage,
+                                   const bool _aquired,
+                                   const bool _owned) {
             cwp.push(
-                [_index, _count, &rmain_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), image = std::move(_uimage)]() {
-                    rmain_window.model().prepareAndPushItem(_index, _count, name, company, brief, image);
+                [_index, _count, &rmain_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), image = std::move(_uimage), _aquired, _owned]() {
+                    rmain_window.model().prepareAndPushItem(_index, _count, name, company, brief, image, _aquired, _owned);
                 });
         };
         config.on_fetch_error_fnc_ = [&cwp, &rmain_window](
@@ -314,6 +316,7 @@ int main(int argc, char* argv[])
         engine.start(std::move(config));
     }
 
+    frameless_window.setWindowIcon(QIcon(":/images/ola_store_bag.ico"));
     frameless_window.show();
 
     const int rv = app.exec();

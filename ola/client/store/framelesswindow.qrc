@@ -4,5 +4,8 @@
         <file>images/icon_window_restore.png</file>
         <file>images/icon_window_maximize.png</file>
         <file>images/icon_window_close.png</file>
+        <file>images/ola_store_bag.ico</file>
+        <file>images/green_tick.png</file>
+        <file>images/red_tick.png</file>
     </qresource>
 </RCC>

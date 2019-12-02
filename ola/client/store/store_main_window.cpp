@@ -37,10 +37,10 @@ struct MainWindow::Data {
     }
 };
 
-void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option) const
+void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _aquired_pix, const QPixmap& _owned_pix) const
 {
     painter->setRenderHint(QPainter::Antialiasing, true);
-    
+
     QColor pen_color = painter->pen().color();
 
     if (option.state & QStyle::State_Selected) {
@@ -52,18 +52,18 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option) cons
 
     painter->setBrush(QBrush(QColor(100, 0, 0)));
     painter->drawImage(QPoint(option.rect.x(), option.rect.y()), image_);
-    
-    QFont base_font   = painter->font();
+
+    QFont base_font = painter->font();
 
     int lineSpacing = image_height;
     {
-        QFont       font = painter->font();
+        QFont font = painter->font();
         font.setBold(true);
         font.setPointSize(font.pointSize() * 2);
         painter->setFont(font);
 
         QFontMetrics fontMetrics = painter->fontMetrics();
-        QTextLayout layout(this->name_, painter->font());
+        QTextLayout  layout(this->name_, painter->font());
         layout.beginLayout();
         QTextLine line = layout.createLine();
 
@@ -71,7 +71,7 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option) cons
             line.setLineWidth(item_width);
             QString lastLine       = this->name_;
             QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideRight, item_width);
-          
+
             painter->drawText(QPoint(option.rect.x(), option.rect.y() + fontMetrics.ascent() + lineSpacing), elidedLastLine);
             painter->setPen(option.palette.highlight().color());
         }
@@ -79,10 +79,22 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option) cons
 
         layout.endLayout();
     }
+    {
+        int pix_x = option.rect.x() + image_width - 32;
+        //_aquired_pix.size().width();
+        if (this->aquired_) {
+            painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _aquired_pix);
+        }
+        pix_x -= 32;
+        //_aquired_pix.size().width();
+        if (this->owned_) {
+            painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _owned_pix);
+        }
+    }
     painter->setFont(base_font);
     {
         QFont font = painter->font();
-        font.setPointSize(font.pointSize() - (font.pointSize() * 25)/100);
+        font.setPointSize(font.pointSize() - (font.pointSize() * 25) / 100);
         painter->setFont(font);
 
         QFontMetrics fontMetrics = painter->fontMetrics();
@@ -95,7 +107,7 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option) cons
             line.setLineWidth(item_width);
             QString lastLine       = this->company_;
             QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideRight, item_width);
-            painter->setPen(QColor(180,180,180));
+            painter->setPen(QColor(180, 180, 180));
             painter->drawText(QPoint(option.rect.x(), option.rect.y() + fontMetrics.ascent() + lineSpacing), elidedLastLine);
             painter->setPen(pen_color);
         }
@@ -105,7 +117,7 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option) cons
     }
     painter->setFont(base_font);
     {
-        QFontMetrics fontMetrics = painter->fontMetrics();
+        QFontMetrics fontMetrics  = painter->fontMetrics();
         int          line_spacing = fontMetrics.lineSpacing();
 
         QTextLayout layout(this->brief_, painter->font());
@@ -129,13 +141,12 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option) cons
                 QString lastLine       = brief_.mid(line.textStart());
                 QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideRight, item_width);
                 painter->drawText(QPoint(option.rect.x(), option.rect.y() + fontMetrics.ascent() + lineSpacing + y), elidedLastLine);
-                line     = layout.createLine();
+                line = layout.createLine();
                 break;
             }
         }
         layout.endLayout();
     }
-
 }
 
 ListModel::ListModel(Engine& _rengine, QObject* parent)
@@ -151,7 +162,9 @@ void ListModel::prepareAndPushItem(
     const std::string&  _name,
     const std::string&  _company,
     const std::string&  _brief,
-    const vector<char>& _image)
+    const vector<char>& _image,
+    const bool          _aquired,
+    const bool          _owned)
 {
     //called on pool thread
     ListItem item;
@@ -159,6 +172,8 @@ void ListModel::prepareAndPushItem(
     item.brief_        = QString::fromStdString(_brief);
     item.company_      = QString::fromStdString(_company);
     item.name_         = QString::fromStdString(_name);
+    item.owned_        = _owned;
+    item.aquired_      = _aquired;
     QImage img;
     if (img.loadFromData(reinterpret_cast<const uchar*>(_image.data()), _image.size())) {
         item.image_ = img.scaled(QSize(image_width, image_height), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
@@ -248,6 +263,12 @@ void ListModel::newItemsSlot()
     emit numberPopulated(count_);
 }
 
+ItemDelegate::ItemDelegate()
+    : aquired_pix_(":/images/green_tick.png")
+    , owned_pix_(":/images/red_tick.png")
+{
+}
+
 void ItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
     const QModelIndex& index) const
 {
@@ -256,7 +277,7 @@ void ItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
 
         painter->save();
 
-        pitem->paint(painter, option);
+        pitem->paint(painter, option, aquired_pix_, owned_pix_);
 
         painter->restore();
     } else {

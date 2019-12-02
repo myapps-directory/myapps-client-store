@@ -20,8 +20,10 @@ struct ListItem {
     QString company_;
     QString brief_;
     QImage  image_;
+    bool    aquired_ = false;
+    bool    owned_   = false;
 
-    void paint(QPainter* painter, const QStyleOptionViewItem& option)const;
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap &_aquired_pix, const QPixmap &_owned_pix)const;
 };
 
 Q_DECLARE_METATYPE(const ListItem*)
@@ -55,7 +57,9 @@ public:
         const std::string&  _name,
         const std::string&  _company,
         const std::string&  _brief,
-        const std::vector<char>& _image);
+        const std::vector<char>& _image,
+        const bool _aquired = true,
+        const bool _owned = true);
     void prepareAndPushItem(
         const size_t _index,
         const size_t _count);
@@ -70,10 +74,15 @@ private slots:
 class ItemDelegate : public QStyledItemDelegate {
     Q_OBJECT
 public:
+    ItemDelegate();
     void  paint(QPainter* painter, const QStyleOptionViewItem& option,
          const QModelIndex& index) const override;
     QSize sizeHint(const QStyleOptionViewItem& option,
         const QModelIndex&                     index) const override;
+
+private:
+    QPixmap aquired_pix_;
+    QPixmap owned_pix_;
 };
 
 class MainWindow : public QMainWindow {

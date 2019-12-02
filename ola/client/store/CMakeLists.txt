@@ -41,6 +41,7 @@ if(${Qt5Widgets_FOUND})
             ola_client_store
             WIN32
             ${SRCS}
+            store_main.rc
         )
     elseif(APPLE)
         add_executable(
