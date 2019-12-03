@@ -84,8 +84,8 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
         //_aquired_pix.size().width();
         if (this->aquired_) {
             painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _aquired_pix);
+            pix_x -= 32;
         }
-        pix_x -= 32;
         //_aquired_pix.size().width();
         if (this->owned_) {
             painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _owned_pix);
