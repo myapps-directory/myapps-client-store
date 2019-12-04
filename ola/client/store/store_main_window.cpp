@@ -1,4 +1,5 @@
 #include "store_main_window.hpp"
+#include "ui_item_form.h"
 #include "ui_list_form.h"
 #include "ui_store_form.h"
 #include <QKeyEvent>
@@ -29,6 +30,7 @@ struct MainWindow::Data {
     ListModel     list_model_;
     Ui::StoreForm store_form_;
     Ui::ListForm  list_form_;
+    Ui::ItemForm  item_form_;
     ItemDelegate  list_delegate_;
 
     Data(Engine& _rengine)
@@ -296,6 +298,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
 {
     pimpl_->store_form_.setupUi(this);
     pimpl_->list_form_.setupUi(pimpl_->store_form_.listWidget);
+    pimpl_->item_form_.setupUi(pimpl_->store_form_.itemWidget);
     pimpl_->list_form_.listView->viewport()->setAttribute(Qt::WA_Hover, true);
     pimpl_->list_form_.listView->setFlow(QListView::Flow::LeftToRight);
     pimpl_->list_form_.listView->setViewMode(QListView::IconMode);
@@ -312,6 +315,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
 
     connect(this, SIGNAL(offlineSignal(bool)), this, SLOT(onOffline(bool)), Qt::QueuedConnection);
     connect(this, SIGNAL(closeSignal()), this, SLOT(close()), Qt::QueuedConnection);
+    connect(pimpl_->list_form_.listView, SIGNAL(doubleClicked(const QModelIndex&)), this, SLOT(onItemDoubleClicked(const QModelIndex&)));
+    connect(pimpl_->item_form_.aquire_button, SIGNAL(toggled(bool)), this, SLOT(onAquireButtonToggled(bool)));
 
     pimpl_->store_form_.itemWidget->hide();
 
@@ -328,6 +333,31 @@ ListModel& MainWindow::model()
 void MainWindow::onOffline(bool _b)
 {
     solid_log(logger, Verbose, "" << _b);
+}
+
+void MainWindow::onItemDoubleClicked(const QModelIndex& _index)
+{
+    solid_log(logger, Verbose, "" << _index.column());
+    //copy the data
+    auto& item = pimpl_->list_model_.item(_index.column());
+    pimpl_->item_form_.image_label->setPixmap(QPixmap::fromImage(item.image_));
+    pimpl_->item_form_.name_label->setText(item.name_);
+    pimpl_->item_form_.company_label->setText(item.company_);
+    pimpl_->item_form_.brief_label->setText(item.brief_);
+
+    if (item.aquired_) {
+        pimpl_->item_form_.aquire_button->setIcon(QIcon(":/images/green_tick.png"));
+        pimpl_->item_form_.aquire_button->setChecked(true);
+    } else if (item.owned_) {
+        pimpl_->item_form_.aquire_button->setIcon(QIcon(":/images/red_tick.png"));
+        pimpl_->item_form_.aquire_button->setChecked(false);
+    } else {
+        pimpl_->item_form_.aquire_button->setIcon(QIcon(":/images/none_tick.png"));
+        pimpl_->item_form_.aquire_button->setChecked(false);
+    }
+
+    pimpl_->store_form_.listWidget->hide();
+    pimpl_->store_form_.itemWidget->show();
 }
 
 void MainWindow::closeEvent(QCloseEvent*)
@@ -348,6 +378,15 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* event)
         return QObject::eventFilter(obj, event);
     }
     return false;
+}
+
+void MainWindow::onAquireButtonToggled(bool _checked)
+{
+    if (_checked) {
+        pimpl_->item_form_.aquire_button->setIcon(QIcon(":/images/green_tick.png"));
+    } else {
+        pimpl_->item_form_.aquire_button->setIcon(QIcon(":/images/red_tick.png"));
+    }
 }
 
 } //namespace store

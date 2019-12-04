@@ -7,5 +7,6 @@
         <file>images/ola_store_bag.ico</file>
         <file>images/green_tick.png</file>
         <file>images/red_tick.png</file>
+        <file>images/none_tick.png</file>
     </qresource>
 </RCC>

@@ -5,10 +5,10 @@
 #include <QAbstractListModel>
 #include <QMainWindow>
 #include <QStyledItemDelegate>
-#include <functional>
-#include <string>
 #include <deque>
+#include <functional>
 #include <mutex>
+#include <string>
 
 namespace ola {
 namespace client {
@@ -23,27 +23,27 @@ struct ListItem {
     bool    aquired_ = false;
     bool    owned_   = false;
 
-    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap &_aquired_pix, const QPixmap &_owned_pix)const;
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _aquired_pix, const QPixmap& _owned_pix) const;
 };
 
 Q_DECLARE_METATYPE(const ListItem*)
 
 class ListModel : public QAbstractListModel {
     Q_OBJECT
-    Engine&                                 rengine_;
+    Engine&              rengine_;
     std::deque<ListItem> item_dq_;
     int                  count_ = 0;
     std::mutex           mutex_;
-    size_t                                  push_item_count_ = 0;
+    size_t               push_item_count_ = 0;
     std::deque<ListItem> push_item_dq_;
     std::deque<ListItem> pop_item_dq_;
-    size_t                                  fetch_count_ = 10;
-    size_t                                  engine_fetch_index_ = 0;
-    mutable bool                            requested_more_   = false;
-    size_t                                  request_more_index_ = 0;
+    size_t               fetch_count_        = 10;
+    size_t               engine_fetch_index_ = 0;
+    mutable bool         requested_more_     = false;
+    size_t               request_more_index_ = 0;
 
 public:
-    ListModel(Engine &_rengine, QObject* parent = nullptr);
+    ListModel(Engine& _rengine, QObject* parent = nullptr);
 
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
 
@@ -52,17 +52,23 @@ public:
     Qt::ItemFlags flags(const QModelIndex& index) const override;
 
     void prepareAndPushItem(
-        const size_t _index,
-        const size_t _count,
-        const std::string&  _name,
-        const std::string&  _company,
-        const std::string&  _brief,
+        const size_t             _index,
+        const size_t             _count,
+        const std::string&       _name,
+        const std::string&       _company,
+        const std::string&       _brief,
         const std::vector<char>& _image,
-        const bool _aquired = true,
-        const bool _owned = true);
+        const bool               _aquired = true,
+        const bool               _owned   = true);
     void prepareAndPushItem(
         const size_t _index,
         const size_t _count);
+    const ListItem& item(const size_t _index) const {
+        return item_dq_[_index];
+    }
+    Engine& engine() {
+        return rengine_;
+    }
 signals:
     void newItemSignal();
     void numberPopulated(int number);
@@ -97,7 +103,8 @@ signals:
     void offlineSignal(bool);
 private slots:
     void onOffline(bool);
-
+    void onItemDoubleClicked(const QModelIndex&);
+    void onAquireButtonToggled(bool _checked);
 private:
     void closeEvent(QCloseEvent*) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
