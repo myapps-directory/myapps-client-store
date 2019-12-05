@@ -22,6 +22,7 @@ struct ListItem {
     QImage  image_;
     bool    aquired_ = false;
     bool    owned_   = false;
+    QVector<QPair<QString, QString>> media_vec_;
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _aquired_pix, const QPixmap& _owned_pix) const;
 };
@@ -63,9 +64,17 @@ public:
     void prepareAndPushItem(
         const size_t _index,
         const size_t _count);
+
+
     const ListItem& item(const size_t _index) const {
         return item_dq_[_index];
     }
+
+    ListItem& item(const size_t _index)
+    {
+        return item_dq_[_index];
+    }
+
     Engine& engine() {
         return rengine_;
     }
@@ -93,7 +102,7 @@ private:
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
-
+    using VectorPairStringT = QVector<QPair<QString, QString>>;
 public:
     MainWindow(Engine& _rengine, QWidget* parent = 0);
     ~MainWindow();
@@ -101,14 +110,20 @@ public:
 signals:
     void closeSignal();
     void offlineSignal(bool);
+    void itemData(int _index, QString _description, QString _release);
+    void itemMedia(int _index, VectorPairStringT _media_vec);
+
 private slots:
     void onOffline(bool);
     void onItemDoubleClicked(const QModelIndex&);
     void onAquireButtonToggled(bool _checked);
+    void itemDataSlot(int _index, const QString& _description, const QString& _release);
+    void itemMediaSlot(int _index, const VectorPairStringT& _rmedia_vec);
+
 private:
     void closeEvent(QCloseEvent*) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
-
+    void showMediaThumbnails(int _index);
 private:
     struct Data;
     solid::PimplT<Data> pimpl_;

@@ -27,6 +27,9 @@ class Engine{
     struct Implementation;
     solid::PimplT<Implementation> pimpl_;
 public:
+    using OnFetchItemDataT = std::function<void(const std::string&, const std::string&)>;
+    using OnFetchItemMediaT = std::function<void(const std::vector<std::pair<std::string, std::string>>&)>;
+
     Engine(solid::frame::mprpc::ServiceT& _rrpc_service);
     ~Engine();
     void start(Configuration&& _rcfg);
@@ -37,6 +40,9 @@ public:
     bool requestMore(const size_t _index, const size_t _count_hint);
 
     void onModelFetchedItems(size_t _model_index, size_t _engine_current_index, size_t _count);
+
+    void fetchItemData(const size_t _index, OnFetchItemDataT _fetch_fnc);
+    void fetchItemMedia(const size_t _index, OnFetchItemMediaT _fetch_fnc);
 };
 
 } //namespace store

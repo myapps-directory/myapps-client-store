@@ -296,6 +296,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     : QMainWindow(parent)
     , pimpl_(solid::make_pimpl<Data>(_rengine))
 {
+    qRegisterMetaType<VectorPairStringT>("VectorPairStringT");
+
     pimpl_->store_form_.setupUi(this);
     pimpl_->list_form_.setupUi(pimpl_->store_form_.listWidget);
     pimpl_->item_form_.setupUi(pimpl_->store_form_.itemWidget);
@@ -313,10 +315,16 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
 
     installEventFilter(this);
 
+
+
     connect(this, SIGNAL(offlineSignal(bool)), this, SLOT(onOffline(bool)), Qt::QueuedConnection);
     connect(this, SIGNAL(closeSignal()), this, SLOT(close()), Qt::QueuedConnection);
     connect(pimpl_->list_form_.listView, SIGNAL(doubleClicked(const QModelIndex&)), this, SLOT(onItemDoubleClicked(const QModelIndex&)));
     connect(pimpl_->item_form_.aquire_button, SIGNAL(toggled(bool)), this, SLOT(onAquireButtonToggled(bool)));
+
+    connect(this, SIGNAL(itemData(int, QString, QString)), this, SLOT(itemDataSlot(int, const QString&, const QString&)), Qt::QueuedConnection);
+
+    const bool connected = connect(this, SIGNAL(itemMedia(int, VectorPairStringT)), this, SLOT(itemMediaSlot(int, const VectorPairStringT&)), Qt::QueuedConnection);
 
     pimpl_->store_form_.itemWidget->hide();
 
@@ -337,13 +345,15 @@ void MainWindow::onOffline(bool _b)
 
 void MainWindow::onItemDoubleClicked(const QModelIndex& _index)
 {
-    solid_log(logger, Verbose, "" << _index.column());
+    solid_log(logger, Verbose, "" << _index.row());
     //copy the data
-    auto& item = pimpl_->list_model_.item(_index.column());
+    auto& item = pimpl_->list_model_.item(_index.row());
     pimpl_->item_form_.image_label->setPixmap(QPixmap::fromImage(item.image_));
     pimpl_->item_form_.name_label->setText(item.name_);
     pimpl_->item_form_.company_label->setText(item.company_);
     pimpl_->item_form_.brief_label->setText(item.brief_);
+
+    pimpl_->item_form_.media_list_widget->hide();
 
     if (item.aquired_) {
         pimpl_->item_form_.aquire_button->setIcon(QIcon(":/images/green_tick.png"));
@@ -358,6 +368,66 @@ void MainWindow::onItemDoubleClicked(const QModelIndex& _index)
 
     pimpl_->store_form_.listWidget->hide();
     pimpl_->store_form_.itemWidget->show();
+
+    pimpl_->list_model_.engine().fetchItemData(
+        item.engine_index_,
+        [this, index = _index.column()](const std::string& _description, const std::string& _release) {
+            //called on another thread - need to move the data onto GUI thread
+            emit itemData(index, QString::fromStdString(_description), QString::fromStdString(_release));
+        });
+    pimpl_->list_model_.engine().fetchItemMedia(
+        item.engine_index_,
+        [this, index = _index.row()](const std::vector < std::pair<std::string, std::string>> & _media_vec) {
+            //called on another thread - need to move the data onto GUI thread
+            QVector<QPair<QString, QString>> media_vec;
+
+            for (auto& m : _media_vec) {
+                media_vec.append(QPair<QString, QString>(QString::fromStdString(m.first), QString::fromStdString(m.second)));
+            }
+
+            emit itemMedia(index, media_vec);
+        });
+}
+
+void MainWindow::itemDataSlot(int _index, const QString& _description, const QString& _release)
+{
+    pimpl_->item_form_.description_label->setText(_description);
+    pimpl_->item_form_.release_label->setText(_release);
+}
+
+void MainWindow::itemMediaSlot(int _index, const VectorPairStringT& _rmedia_vec)
+{
+    if (!_rmedia_vec.empty()) {
+        auto& item      = pimpl_->list_model_.item(_index);
+        item.media_vec_ = _rmedia_vec;
+        showMediaThumbnails(_index);
+    }
+}
+
+void MainWindow::showMediaThumbnails(int _index)
+{
+    auto& item = pimpl_->list_model_.item(_index);
+    if (item.media_vec_.size()) {
+        pimpl_->item_form_.media_list_widget->setMinimumHeight(image_height + 20);
+        bool has_image = false;
+        for (const auto& media : item.media_vec_) {
+            QImage image;
+            string s = media.first.toStdString();
+            cout << s << endl;
+            if (image.load(media.first)) {
+                auto* pitem = new QListWidgetItem("");
+                pitem->setData(Qt::DecorationRole, QPixmap::fromImage(image.scaled(QSize(image_width, image_height), Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
+                pitem->setSizeHint(QSize(image_width, image_height) + QSize(4, 4));
+                pimpl_->item_form_.media_list_widget->addItem(pitem);
+                has_image = true;
+            }
+        }
+        if (has_image) {
+            pimpl_->item_form_.media_list_widget->show();
+        }
+    } else {
+        pimpl_->item_form_.media_list_widget->hide();
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent*)

@@ -86,6 +86,11 @@ public:
         config_      = std::move(_rcfg);
         fetch_count_ = config_.start_fetch_count_;
     }
+
+    string localMediaPath(const string& _path, const string &_storage_id, const string &_unique) const {
+        //TODO:
+        return "c:\\ola\\.m\\" + utility::hex_encode(_storage_id) + '\\' + _path;
+    }
 };
 
 Engine::Engine(frame::mprpc::ServiceT& _rrpc_service)
@@ -229,10 +234,14 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
                 pimpl_->config_.on_fetch_error_fnc_(i, pimpl_->fetch_count_);
             }
         };
-        auto req_ptr     = make_shared<ola::front::FetchBuildConfigurationRequest>();
-        req_ptr->app_id_ = pimpl_->app_dq_[i].app_id_;
-        req_ptr->lang_   = pimpl_->config_.language_;
-        req_ptr->os_id_  = pimpl_->config_.os_;
+        auto req_ptr = make_shared<ola::front::FetchBuildConfigurationRequest>();
+        {
+            lock_guard<mutex> lock(pimpl_->mutex_);
+            req_ptr->app_id_ = pimpl_->app_dq_[i].app_id_;
+        }
+
+        req_ptr->lang_  = pimpl_->config_.language_;
+        req_ptr->os_id_ = pimpl_->config_.os_;
 
         ola::utility::Build::set_option(req_ptr->fetch_options_, ola::utility::Build::FetchOptionsE::Image);
         req_ptr->property_vec_.emplace_back("name");
@@ -266,6 +275,64 @@ void Engine::onModelFetchedItems(size_t _model_index, size_t _engine_current_ind
             solid_throw("invalid status for app at index: " << i);
         }
     }
+}
+
+void Engine::fetchItemData(const size_t _index, OnFetchItemDataT _fetch_fnc)
+{
+    auto lambda = [_fetch_fnc](
+                      frame::mprpc::ConnectionContext&                              _rctx,
+                      std::shared_ptr<ola::front::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
+                      std::shared_ptr<ola::front::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
+                      ErrorConditionT const&                                        _rerror) {
+        if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
+            _fetch_fnc(_rrecv_msg_ptr->configuration_.property_vec_[0].second, _rrecv_msg_ptr->configuration_.property_vec_[1].second);
+        } else /*if (_rrecv_msg_ptr->error_)*/ {
+            _fetch_fnc("", "");
+        }
+    };
+    auto req_ptr = make_shared<ola::front::FetchBuildConfigurationRequest>();
+    {
+        lock_guard<mutex> lock(pimpl_->mutex_);
+        req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
+    }
+
+    req_ptr->lang_  = pimpl_->config_.language_;
+    req_ptr->os_id_ = pimpl_->config_.os_;
+
+    ola::utility::Build::set_option(req_ptr->fetch_options_, ola::utility::Build::FetchOptionsE::Image);
+    req_ptr->property_vec_.emplace_back("description");
+    req_ptr->property_vec_.emplace_back("release");
+
+    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+}
+
+void Engine::fetchItemMedia(const size_t _index, OnFetchItemMediaT _fetch_fnc)
+{
+    auto lambda = [this, _fetch_fnc](
+                      frame::mprpc::ConnectionContext&                              _rctx,
+                      std::shared_ptr<ola::front::FetchMediaConfigurationRequest>&  _rsent_msg_ptr,
+                      std::shared_ptr<ola::front::FetchMediaConfigurationResponse>& _rrecv_msg_ptr,
+                      ErrorConditionT const&                                        _rerror) {
+        vector<pair<string, string>> media_vec;
+
+        if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
+
+            for (const auto& m : _rrecv_msg_ptr->configuration_.entry_vec_) {
+                media_vec.emplace_back(pimpl_->localMediaPath(m.thumbnail_path_, _rrecv_msg_ptr->storage_id_, _rrecv_msg_ptr->unique_), pimpl_->localMediaPath(m.path_, _rrecv_msg_ptr->storage_id_, _rrecv_msg_ptr->unique_));
+            }
+        }
+        _fetch_fnc(media_vec);
+    };
+    auto req_ptr = make_shared<ola::front::FetchMediaConfigurationRequest>();
+    {
+        lock_guard<mutex> lock(pimpl_->mutex_);
+        req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
+    }
+
+    req_ptr->lang_  = pimpl_->config_.language_;
+    req_ptr->os_id_ = pimpl_->config_.os_;
+
+    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
 
 } //namespace store
