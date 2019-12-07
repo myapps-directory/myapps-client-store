@@ -5,6 +5,7 @@
 #include <QAbstractListModel>
 #include <QMainWindow>
 #include <QStyledItemDelegate>
+#include <QListWidgetItem>
 #include <deque>
 #include <functional>
 #include <mutex>
@@ -20,11 +21,11 @@ struct ListItem {
     QString company_;
     QString brief_;
     QImage  image_;
-    bool    aquired_ = false;
+    bool    acquired_ = false;
     bool    owned_   = false;
     QVector<QPair<QString, QString>> media_vec_;
 
-    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _aquired_pix, const QPixmap& _owned_pix) const;
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix) const;
 };
 
 Q_DECLARE_METATYPE(const ListItem*)
@@ -96,7 +97,7 @@ public:
         const QModelIndex&                     index) const override;
 
 private:
-    QPixmap aquired_pix_;
+    QPixmap acquired_pix_;
     QPixmap owned_pix_;
 };
 
@@ -112,6 +113,7 @@ signals:
     void offlineSignal(bool);
     void itemData(int _index, QString _description, QString _release);
     void itemMedia(int _index, VectorPairStringT _media_vec);
+    void itemAcquire(int _index, bool _acquired);
 
 private slots:
     void onOffline(bool);
@@ -119,11 +121,18 @@ private slots:
     void onAquireButtonToggled(bool _checked);
     void itemDataSlot(int _index, const QString& _description, const QString& _release);
     void itemMediaSlot(int _index, const VectorPairStringT& _rmedia_vec);
+    void itemAcquireSlot(int _index, bool _acquired);
+    void imageDoubleClicked(QListWidgetItem*);
+
+    void goHomeSlot(bool);
+    void goAccountSlot(bool);
+    void goBackSlot(bool);
 
 private:
     void closeEvent(QCloseEvent*) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
     void showMediaThumbnails(int _index);
+    void showItem(int _index);
 private:
     struct Data;
     solid::PimplT<Data> pimpl_;

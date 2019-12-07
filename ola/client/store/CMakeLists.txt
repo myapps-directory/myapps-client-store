@@ -16,7 +16,7 @@ find_package (Qt5Gui)
 find_package (Qt5Widgets)
 
 if(${Qt5Widgets_FOUND})
-    QT5_WRAP_UI(FORMS_HEADERS store_form.ui framelesswindow.ui list_form.ui item_form.ui)
+    QT5_WRAP_UI(FORMS_HEADERS store_form.ui framelesswindow.ui list_form.ui item_form.ui account_form.ui)
     QT5_ADD_RESOURCES( FORMS_HEADERS darkstyle.qrc framelesswindow.qrc)
     
     set(SRCS

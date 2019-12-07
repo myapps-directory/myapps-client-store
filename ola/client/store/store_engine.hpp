@@ -29,6 +29,7 @@ class Engine{
 public:
     using OnFetchItemDataT = std::function<void(const std::string&, const std::string&)>;
     using OnFetchItemMediaT = std::function<void(const std::vector<std::pair<std::string, std::string>>&)>;
+    using OnAcquireItemT = std::function<void(bool)>;
 
     Engine(solid::frame::mprpc::ServiceT& _rrpc_service);
     ~Engine();
@@ -43,6 +44,8 @@ public:
 
     void fetchItemData(const size_t _index, OnFetchItemDataT _fetch_fnc);
     void fetchItemMedia(const size_t _index, OnFetchItemMediaT _fetch_fnc);
+
+    void acquireItem(const size_t _index, const bool _acquire, OnAcquireItemT _fetch_fnc);
 };
 
 } //namespace store

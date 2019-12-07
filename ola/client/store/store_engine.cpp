@@ -335,6 +335,29 @@ void Engine::fetchItemMedia(const size_t _index, OnFetchItemMediaT _fetch_fnc)
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
 
+void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItemT _fetch_fnc) {
+    auto lambda = [this, _fetch_fnc](
+                      frame::mprpc::ConnectionContext&                              _rctx,
+                      std::shared_ptr<ola::front::AcquireAppRequest>&  _rsent_msg_ptr,
+                      std::shared_ptr<ola::front::Response>& _rrecv_msg_ptr,
+                      ErrorConditionT const&                                        _rerror) {
+        if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
+            _fetch_fnc(_rsent_msg_ptr->acquire_);
+        } else {
+            _fetch_fnc(false);
+        }
+    };
+    auto req_ptr = make_shared<ola::front::AcquireAppRequest>();
+    {
+        lock_guard<mutex> lock(pimpl_->mutex_);
+        req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
+    }
+
+    req_ptr->acquire_ = _acquire;
+
+    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+}
+
 } //namespace store
 } //namespace client
 } //namespace ola

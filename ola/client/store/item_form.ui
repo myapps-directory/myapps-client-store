@@ -632,7 +632,7 @@
                </spacer>
               </item>
               <item>
-               <widget class="QPushButton" name="aquire_button">
+               <widget class="QPushButton" name="acquire_button">
                 <property name="minimumSize">
                  <size>
                   <width>64</width>
@@ -733,7 +733,7 @@
           <enum>Qt::ScrollBarAlwaysOff</enum>
          </property>
          <property name="dragDropMode">
-          <enum>QAbstractItemView::DropOnly</enum>
+          <enum>QAbstractItemView::NoDragDrop</enum>
          </property>
          <property name="selectionBehavior">
           <enum>QAbstractItemView::SelectItems</enum>

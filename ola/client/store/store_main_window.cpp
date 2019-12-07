@@ -1,11 +1,19 @@
 #include "store_main_window.hpp"
+#include "ui_account_form.h"
 #include "ui_item_form.h"
 #include "ui_list_form.h"
 #include "ui_store_form.h"
+#include <QAction>
+#include <QComboBox>
+#include <QImageReader>
 #include <QKeyEvent>
+#include <QMenu>
 #include <QPainter>
 #include <QTextLayout>
+#include <QToolBar>
+#include <QToolButton>
 #include <algorithm>
+#include <stack>
 #include <vector>
 
 #include "solid/system/log.hpp"
@@ -24,22 +32,60 @@ constexpr int        item_width        = 384;
 constexpr int        item_height       = 324;
 constexpr int        item_column_count = 3;
 constexpr int        item_row_count    = 2;
+
+using HistoryFunctionT = std::function<void()>;
+using HistoryStackT    = std::stack<HistoryFunctionT>;
 } //namespace
 
 struct MainWindow::Data {
-    ListModel     list_model_;
-    Ui::StoreForm store_form_;
-    Ui::ListForm  list_form_;
-    Ui::ItemForm  item_form_;
-    ItemDelegate  list_delegate_;
+    ListModel       list_model_;
+    Ui::StoreForm   store_form_;
+    Ui::ListForm    list_form_;
+    Ui::ItemForm    item_form_;
+    Ui::AccountForm account_form_;
+    ItemDelegate    list_delegate_;
+    int             current_item_ = -1;
+    QAction         back_action_;
+    QAction         home_action_;
+    QAction         account_action_;
+    QToolBar        tool_bar_;
+    QMenu           config_menu_;
+    HistoryStackT   history_;
 
-    Data(Engine& _rengine)
+    Data(Engine& _rengine, MainWindow* _pw)
         : list_model_(_rengine)
+        , back_action_(QIcon(":/images/none_tick.png"), tr("&Back"), _pw)
+        , home_action_(QIcon(":/images/none_tick.png"), tr("&Home"), _pw)
+        , account_action_(QIcon(":/images/none_tick.png"), tr("&Account"), _pw)
+        , tool_bar_(_pw)
+        , config_menu_(_pw)
     {
+    }
+
+    Engine& engine()
+    {
+        return list_model_.engine();
+    }
+
+    void showWidget(QWidget* _pw)
+    {
+        if (store_form_.accountWidget != _pw) {
+            store_form_.accountWidget->hide();
+        }
+        if (store_form_.imageWidget != _pw) {
+            store_form_.imageWidget->hide();
+        }
+        if (store_form_.listWidget != _pw) {
+            store_form_.listWidget->hide();
+        }
+        if (store_form_.itemWidget != _pw) {
+            store_form_.itemWidget->hide();
+        }
+        _pw->show();
     }
 };
 
-void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _aquired_pix, const QPixmap& _owned_pix) const
+void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix) const
 {
     painter->setRenderHint(QPainter::Antialiasing, true);
 
@@ -83,12 +129,12 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
     }
     {
         int pix_x = option.rect.x() + image_width - 32;
-        //_aquired_pix.size().width();
-        if (this->aquired_) {
-            painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _aquired_pix);
+        //_acquired_pix.size().width();
+        if (this->acquired_) {
+            painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _acquired_pix);
             pix_x -= 32;
         }
-        //_aquired_pix.size().width();
+        //_acquired_pix.size().width();
         if (this->owned_) {
             painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _owned_pix);
         }
@@ -165,7 +211,7 @@ void ListModel::prepareAndPushItem(
     const std::string&  _company,
     const std::string&  _brief,
     const vector<char>& _image,
-    const bool          _aquired,
+    const bool          _acquired,
     const bool          _owned)
 {
     //called on pool thread
@@ -175,7 +221,7 @@ void ListModel::prepareAndPushItem(
     item.company_      = QString::fromStdString(_company);
     item.name_         = QString::fromStdString(_name);
     item.owned_        = _owned;
-    item.aquired_      = _aquired;
+    item.acquired_     = _acquired;
     QImage img;
     if (img.loadFromData(reinterpret_cast<const uchar*>(_image.data()), _image.size())) {
         item.image_ = img.scaled(QSize(image_width, image_height), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
@@ -266,7 +312,7 @@ void ListModel::newItemsSlot()
 }
 
 ItemDelegate::ItemDelegate()
-    : aquired_pix_(":/images/green_tick.png")
+    : acquired_pix_(":/images/green_tick.png")
     , owned_pix_(":/images/red_tick.png")
 {
 }
@@ -279,7 +325,7 @@ void ItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
 
         painter->save();
 
-        pitem->paint(painter, option, aquired_pix_, owned_pix_);
+        pitem->paint(painter, option, acquired_pix_, owned_pix_);
 
         painter->restore();
     } else {
@@ -294,13 +340,14 @@ QSize ItemDelegate::sizeHint(const QStyleOptionViewItem& option,
 
 MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     : QMainWindow(parent)
-    , pimpl_(solid::make_pimpl<Data>(_rengine))
+    , pimpl_(solid::make_pimpl<Data>(_rengine, this))
 {
     qRegisterMetaType<VectorPairStringT>("VectorPairStringT");
 
     pimpl_->store_form_.setupUi(this);
     pimpl_->list_form_.setupUi(pimpl_->store_form_.listWidget);
     pimpl_->item_form_.setupUi(pimpl_->store_form_.itemWidget);
+    pimpl_->account_form_.setupUi(pimpl_->store_form_.accountWidget);
     pimpl_->list_form_.listView->viewport()->setAttribute(Qt::WA_Hover, true);
     pimpl_->list_form_.listView->setFlow(QListView::Flow::LeftToRight);
     pimpl_->list_form_.listView->setViewMode(QListView::IconMode);
@@ -315,20 +362,55 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
 
     installEventFilter(this);
 
-
-
     connect(this, SIGNAL(offlineSignal(bool)), this, SLOT(onOffline(bool)), Qt::QueuedConnection);
     connect(this, SIGNAL(closeSignal()), this, SLOT(close()), Qt::QueuedConnection);
     connect(pimpl_->list_form_.listView, SIGNAL(doubleClicked(const QModelIndex&)), this, SLOT(onItemDoubleClicked(const QModelIndex&)));
-    connect(pimpl_->item_form_.aquire_button, SIGNAL(toggled(bool)), this, SLOT(onAquireButtonToggled(bool)));
+    connect(pimpl_->item_form_.acquire_button, SIGNAL(toggled(bool)), this, SLOT(onAquireButtonToggled(bool)));
 
     connect(this, SIGNAL(itemData(int, QString, QString)), this, SLOT(itemDataSlot(int, const QString&, const QString&)), Qt::QueuedConnection);
 
-    const bool connected = connect(this, SIGNAL(itemMedia(int, VectorPairStringT)), this, SLOT(itemMediaSlot(int, const VectorPairStringT&)), Qt::QueuedConnection);
+    connect(this, SIGNAL(itemMedia(int, VectorPairStringT)), this, SLOT(itemMediaSlot(int, const VectorPairStringT&)), Qt::QueuedConnection);
+    connect(this, SIGNAL(itemAcquire(int, bool)), this, SLOT(itemAcquireSlot(int, bool)), Qt::QueuedConnection);
 
-    pimpl_->store_form_.itemWidget->hide();
+    connect(pimpl_->item_form_.media_list_widget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(imageDoubleClicked(QListWidgetItem*)));
+
+    connect(&pimpl_->home_action_, &QAction::triggered, this, &MainWindow::goHomeSlot);
+    connect(&pimpl_->account_action_, &QAction::triggered, this, &MainWindow::goAccountSlot);
+    connect(&pimpl_->back_action_, &QAction::triggered, this, &MainWindow::goBackSlot);
+
+    pimpl_->tool_bar_.setMovable(false);
+    this->addToolBar(&pimpl_->tool_bar_);
+
+    QToolButton* ptoolbutton = new QToolButton;
+
+    ptoolbutton->setIcon(QIcon(":/images/none_tick.png"));
+    ptoolbutton->setMenu(&pimpl_->config_menu_);
+    ptoolbutton->setPopupMode(QToolButton::ToolButtonPopupMode::InstantPopup);
+
+    pimpl_->tool_bar_.addWidget(ptoolbutton);
+    pimpl_->tool_bar_.addSeparator();
+    pimpl_->tool_bar_.addAction(&pimpl_->back_action_);
+    pimpl_->tool_bar_.addAction(&pimpl_->home_action_);
+    QComboBox* psearchcombo = new QComboBox;
+    psearchcombo->setMinimumWidth(300);
+    psearchcombo->setEditable(true);
+    psearchcombo->setEnabled(false);
+    psearchcombo->setEditText("All");
+    psearchcombo->setToolTip(tr("Search"));
+
+    pimpl_->tool_bar_.addSeparator();
+    pimpl_->tool_bar_.addWidget(psearchcombo);
+
+    pimpl_->config_menu_.addAction(&pimpl_->account_action_);
+
+    pimpl_->showWidget(pimpl_->store_form_.listWidget);
 
     parent->resize(QSize(item_width * item_column_count + 60, item_height * item_row_count + 133));
+
+    pimpl_->history_.push(
+        [this]() {
+            pimpl_->showWidget(pimpl_->store_form_.listWidget);
+        });
 }
 
 MainWindow::~MainWindow() {}
@@ -346,47 +428,61 @@ void MainWindow::onOffline(bool _b)
 void MainWindow::onItemDoubleClicked(const QModelIndex& _index)
 {
     solid_log(logger, Verbose, "" << _index.row());
-    //copy the data
-    auto& item = pimpl_->list_model_.item(_index.row());
+    pimpl_->history_.push(
+        [this, index = _index.row()]() {
+            showItem(index);
+            pimpl_->showWidget(pimpl_->store_form_.itemWidget);
+        });
+
+    pimpl_->history_.top()();
+}
+
+void MainWindow::showItem(int _index)
+{
+    pimpl_->current_item_ = _index;
+    auto& item            = pimpl_->list_model_.item(pimpl_->current_item_);
     pimpl_->item_form_.image_label->setPixmap(QPixmap::fromImage(item.image_));
     pimpl_->item_form_.name_label->setText(item.name_);
     pimpl_->item_form_.company_label->setText(item.company_);
     pimpl_->item_form_.brief_label->setText(item.brief_);
 
     pimpl_->item_form_.media_list_widget->hide();
+    pimpl_->item_form_.media_list_widget->clear();
 
-    if (item.aquired_) {
-        pimpl_->item_form_.aquire_button->setIcon(QIcon(":/images/green_tick.png"));
-        pimpl_->item_form_.aquire_button->setChecked(true);
+    pimpl_->item_form_.acquire_button->setChecked(item.acquired_);
+    if (item.acquired_) {
+        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/green_tick.png"));
+        pimpl_->item_form_.acquire_button->setChecked(true);
     } else if (item.owned_) {
-        pimpl_->item_form_.aquire_button->setIcon(QIcon(":/images/red_tick.png"));
-        pimpl_->item_form_.aquire_button->setChecked(false);
+        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/red_tick.png"));
+        pimpl_->item_form_.acquire_button->setChecked(false);
     } else {
-        pimpl_->item_form_.aquire_button->setIcon(QIcon(":/images/none_tick.png"));
-        pimpl_->item_form_.aquire_button->setChecked(false);
+        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/none_tick.png"));
+        pimpl_->item_form_.acquire_button->setChecked(false);
     }
 
-    pimpl_->store_form_.listWidget->hide();
-    pimpl_->store_form_.itemWidget->show();
-
-    pimpl_->list_model_.engine().fetchItemData(
+    pimpl_->engine().fetchItemData(
         item.engine_index_,
-        [this, index = _index.column()](const std::string& _description, const std::string& _release) {
+        [this, index = _index](const std::string& _description, const std::string& _release) {
             //called on another thread - need to move the data onto GUI thread
             emit itemData(index, QString::fromStdString(_description), QString::fromStdString(_release));
         });
-    pimpl_->list_model_.engine().fetchItemMedia(
-        item.engine_index_,
-        [this, index = _index.row()](const std::vector < std::pair<std::string, std::string>> & _media_vec) {
-            //called on another thread - need to move the data onto GUI thread
-            QVector<QPair<QString, QString>> media_vec;
+    if (item.media_vec_.empty()) {
+        pimpl_->engine().fetchItemMedia(
+            item.engine_index_,
+            [this, index = _index](const std::vector<std::pair<std::string, std::string>>& _media_vec) {
+                //called on another thread - need to move the data onto GUI thread
+                QVector<QPair<QString, QString>> media_vec;
 
-            for (auto& m : _media_vec) {
-                media_vec.append(QPair<QString, QString>(QString::fromStdString(m.first), QString::fromStdString(m.second)));
-            }
+                for (auto& m : _media_vec) {
+                    media_vec.append(QPair<QString, QString>(QString::fromStdString(m.first), QString::fromStdString(m.second)));
+                }
 
-            emit itemMedia(index, media_vec);
-        });
+                emit itemMedia(index, media_vec);
+            });
+    } else {
+        showMediaThumbnails(_index);
+    }
 }
 
 void MainWindow::itemDataSlot(int _index, const QString& _description, const QString& _release)
@@ -404,23 +500,52 @@ void MainWindow::itemMediaSlot(int _index, const VectorPairStringT& _rmedia_vec)
     }
 }
 
+void MainWindow::itemAcquireSlot(int _index, bool _acquired)
+{
+    auto& item = pimpl_->list_model_.item(_index);
+
+    item.acquired_ = _acquired;
+
+    if (_index == pimpl_->current_item_) {
+        pimpl_->item_form_.acquire_button->setChecked(_acquired);
+        if (_acquired) {
+            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/green_tick.png"));
+        } else if (item.owned_) {
+            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/red_tick.png"));
+        } else {
+            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/none_tick.png"));
+        }
+    }
+}
+namespace {
+struct ThumbnailItem : QListWidgetItem {
+    size_t index_;
+    ThumbnailItem(const size_t _index)
+        : QListWidgetItem("")
+        , index_(_index)
+    {
+    }
+};
+} // namespace
+
 void MainWindow::showMediaThumbnails(int _index)
 {
     auto& item = pimpl_->list_model_.item(_index);
+    
     if (item.media_vec_.size()) {
         pimpl_->item_form_.media_list_widget->setMinimumHeight(image_height + 20);
-        bool has_image = false;
+        bool   has_image = false;
+        size_t index     = 0;
         for (const auto& media : item.media_vec_) {
             QImage image;
-            string s = media.first.toStdString();
-            cout << s << endl;
             if (image.load(media.first)) {
-                auto* pitem = new QListWidgetItem("");
+                auto* pitem = new ThumbnailItem(index);
                 pitem->setData(Qt::DecorationRole, QPixmap::fromImage(image.scaled(QSize(image_width, image_height), Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
                 pitem->setSizeHint(QSize(image_width, image_height) + QSize(4, 4));
                 pimpl_->item_form_.media_list_widget->addItem(pitem);
                 has_image = true;
             }
+            ++index;
         }
         if (has_image) {
             pimpl_->item_form_.media_list_widget->show();
@@ -452,10 +577,62 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* event)
 
 void MainWindow::onAquireButtonToggled(bool _checked)
 {
-    if (_checked) {
-        pimpl_->item_form_.aquire_button->setIcon(QIcon(":/images/green_tick.png"));
-    } else {
-        pimpl_->item_form_.aquire_button->setIcon(QIcon(":/images/red_tick.png"));
+    const auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
+
+    pimpl_->engine().acquireItem(
+        item.engine_index_,
+        _checked,
+        [this, index = pimpl_->current_item_](bool _acquired) {
+            emit itemAcquire(index, _acquired);
+        });
+}
+
+void MainWindow::imageDoubleClicked(QListWidgetItem* _item)
+{
+    auto* pthumb = static_cast<ThumbnailItem*>(_item);
+
+    pimpl_->history_.push(
+        [this, item_index = pimpl_->current_item_, image_index = pthumb->index_]() {
+            const auto&    item = pimpl_->list_model_.item(item_index);
+            const QString& path = item.media_vec_[image_index].second;
+
+            QImage image;
+            if (image.load(path)) {
+                pimpl_->store_form_.image_label->setPixmap(QPixmap(QPixmap::fromImage(image)));
+                pimpl_->store_form_.image_label->adjustSize();
+                pimpl_->showWidget(pimpl_->store_form_.imageWidget);
+            }
+        });
+
+    pimpl_->history_.top()();
+}
+
+void MainWindow::goHomeSlot(bool)
+{
+    pimpl_->history_.push(
+        [this]() {
+            pimpl_->showWidget(pimpl_->store_form_.listWidget);
+        });
+
+    pimpl_->history_.top()();
+}
+
+void MainWindow::goAccountSlot(bool)
+{
+    pimpl_->history_.push(
+        [this]() {
+            pimpl_->showWidget(pimpl_->store_form_.accountWidget);
+        });
+
+    pimpl_->history_.top()();
+}
+void MainWindow::goBackSlot(bool)
+{
+    if (!pimpl_->history_.empty()) {
+        pimpl_->history_.pop();
+        if (!pimpl_->history_.empty()) {
+            pimpl_->history_.top()();
+        }
     }
 }
 
