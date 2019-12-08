@@ -54,9 +54,9 @@ struct MainWindow::Data {
 
     Data(Engine& _rengine, MainWindow* _pw)
         : list_model_(_rengine)
-        , back_action_(QIcon(":/images/none_tick.png"), tr("&Back"), _pw)
-        , home_action_(QIcon(":/images/none_tick.png"), tr("&Home"), _pw)
-        , account_action_(QIcon(":/images/none_tick.png"), tr("&Account"), _pw)
+        , back_action_(QIcon(":/images/back.png"), tr("&Back"), _pw)
+        , home_action_(QIcon(":/images/home.png"), tr("&Home"), _pw)
+        , account_action_(QIcon(":/images/account.png"), tr("&Account"), _pw)
         , tool_bar_(_pw)
         , config_menu_(_pw)
     {
@@ -85,7 +85,7 @@ struct MainWindow::Data {
     }
 };
 
-void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix) const
+void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const
 {
     painter->setRenderHint(QPainter::Antialiasing, true);
 
@@ -128,17 +128,16 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
         layout.endLayout();
     }
     {
-        int pix_x = option.rect.x() + image_width - 32;
-        //_acquired_pix.size().width();
-        if (this->acquired_) {
+        const int pix_x = option.rect.x() + image_width - 32;
+        if (acquired_ && owned_) {
+            painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _acquired_owned_pix);
+        } else if (acquired_) {
             painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _acquired_pix);
-            pix_x -= 32;
-        }
-        //_acquired_pix.size().width();
-        if (this->owned_) {
+        } else if (owned_) {
             painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _owned_pix);
         }
     }
+
     painter->setFont(base_font);
     {
         QFont font = painter->font();
@@ -312,8 +311,9 @@ void ListModel::newItemsSlot()
 }
 
 ItemDelegate::ItemDelegate()
-    : acquired_pix_(":/images/green_tick.png")
-    , owned_pix_(":/images/red_tick.png")
+    : acquired_pix_(":/images/acquired.png")
+    , owned_pix_(":/images/owned.png")
+    , acquired_owned_pix_(":/images/acquired_owned.png")
 {
 }
 
@@ -325,7 +325,7 @@ void ItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
 
         painter->save();
 
-        pitem->paint(painter, option, acquired_pix_, owned_pix_);
+        pitem->paint(painter, option, acquired_pix_, owned_pix_, acquired_owned_pix_);
 
         painter->restore();
     } else {
@@ -383,7 +383,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
 
     QToolButton* ptoolbutton = new QToolButton;
 
-    ptoolbutton->setIcon(QIcon(":/images/none_tick.png"));
+    ptoolbutton->setIcon(QIcon(":/images/config.png"));
     ptoolbutton->setMenu(&pimpl_->config_menu_);
     ptoolbutton->setPopupMode(QToolButton::ToolButtonPopupMode::InstantPopup);
 
@@ -450,15 +450,15 @@ void MainWindow::showItem(int _index)
     pimpl_->item_form_.media_list_widget->clear();
 
     pimpl_->item_form_.acquire_button->setChecked(item.acquired_);
-    if (item.acquired_) {
-        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/green_tick.png"));
-        pimpl_->item_form_.acquire_button->setChecked(true);
+
+    if (item.acquired_ && item.owned_) {
+        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired_owned.png"));
+    } else if (item.acquired_) {
+        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired.png"));
     } else if (item.owned_) {
-        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/red_tick.png"));
-        pimpl_->item_form_.acquire_button->setChecked(false);
+        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/owned.png"));
     } else {
-        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/none_tick.png"));
-        pimpl_->item_form_.acquire_button->setChecked(false);
+        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/empty.png"));
     }
 
     pimpl_->engine().fetchItemData(
@@ -508,12 +508,14 @@ void MainWindow::itemAcquireSlot(int _index, bool _acquired)
 
     if (_index == pimpl_->current_item_) {
         pimpl_->item_form_.acquire_button->setChecked(_acquired);
-        if (_acquired) {
-            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/green_tick.png"));
+        if (item.acquired_ && item.owned_) {
+            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired_owned.png"));
+        } else if (item.acquired_) {
+            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired.png"));
         } else if (item.owned_) {
-            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/red_tick.png"));
+            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/owned.png"));
         } else {
-            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/none_tick.png"));
+            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/empty.png"));
         }
     }
 }
@@ -531,7 +533,7 @@ struct ThumbnailItem : QListWidgetItem {
 void MainWindow::showMediaThumbnails(int _index)
 {
     auto& item = pimpl_->list_model_.item(_index);
-    
+
     if (item.media_vec_.size()) {
         pimpl_->item_form_.media_list_widget->setMinimumHeight(image_height + 20);
         bool   has_image = false;

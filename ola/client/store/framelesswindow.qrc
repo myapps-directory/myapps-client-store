@@ -5,8 +5,13 @@
         <file>images/icon_window_maximize.png</file>
         <file>images/icon_window_close.png</file>
         <file>images/ola_store_bag.ico</file>
-        <file>images/green_tick.png</file>
-        <file>images/red_tick.png</file>
-        <file>images/none_tick.png</file>
+        <file>images/owned.png</file>
+        <file>images/acquired.png</file>
+        <file>images/empty.png</file>
+        <file>images/acquired_owned.png</file>
+        <file>images/back.png</file>
+        <file>images/home.png</file>
+        <file>images/config.png</file>
+        <file>images/account.png</file>
     </qresource>
 </RCC>

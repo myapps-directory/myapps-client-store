@@ -25,7 +25,7 @@ struct ListItem {
     bool    owned_   = false;
     QVector<QPair<QString, QString>> media_vec_;
 
-    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix) const;
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const;
 };
 
 Q_DECLARE_METATYPE(const ListItem*)
@@ -99,6 +99,7 @@ public:
 private:
     QPixmap acquired_pix_;
     QPixmap owned_pix_;
+    QPixmap acquired_owned_pix_;
 };
 
 class MainWindow : public QMainWindow {
