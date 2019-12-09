@@ -12,7 +12,7 @@ namespace client {
 namespace store {
 
 struct Configuration{
-    using OnFetchFunctionT = std::function<void(size_t, size_t, std::string&&, std::string&&, std::string&&, std::vector<char>&&, bool, bool)>;
+    using OnFetchFunctionT = std::function<void(size_t, size_t, std::string&&, std::string&&, std::string&&, std::vector<char>&&, bool, bool, bool)>;
     using OnFetchErrorFunctionT = std::function<void(size_t, size_t)>;
 
     std::string       front_endpoint_;
@@ -36,8 +36,10 @@ public:
     void start(Configuration&& _rcfg);
     void stop();
     
-    void requestAquired(std::shared_ptr<front::ListAppsRequest>);
-    void requestOwned(std::shared_ptr<front::ListAppsRequest>);
+    void requestAquired(std::shared_ptr<front::ListAppsRequest> &_rreq_msg);
+    void requestOwned(std::shared_ptr<front::ListAppsRequest>& _rreq_msg);
+    void requestDefault(std::shared_ptr<front::ListAppsRequest>& _rreq_msg);
+
     bool requestMore(const size_t _index, const size_t _count_hint);
 
     void onModelFetchedItems(size_t _model_index, size_t _engine_current_index, size_t _count);

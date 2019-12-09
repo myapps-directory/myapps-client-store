@@ -23,7 +23,8 @@ struct ApplicationStub {
     };
     enum struct FlagsE : uint8_t {
         Aquired = 0,
-        Owned
+        Owned,
+        Default,
     };
 
     string  app_id_;
@@ -87,7 +88,8 @@ public:
         fetch_count_ = config_.start_fetch_count_;
     }
 
-    string localMediaPath(const string& _path, const string &_storage_id, const string &_unique) const {
+    string localMediaPath(const string& _path, const string& _storage_id, const string& _unique) const
+    {
         //TODO:
         return "c:\\ola\\.m\\" + utility::hex_encode(_storage_id) + '\\' + _path;
     }
@@ -108,8 +110,6 @@ void Engine::start(Configuration&& _rcfg)
 
     auto req_ptr = make_shared<front::ListAppsRequest>();
 
-    //o - owned applications
-    //a - aquired applications
     //A - all applications
     req_ptr->choice_ = 'A';
     auto lambda      = [this](
@@ -122,7 +122,6 @@ void Engine::start(Configuration&& _rcfg)
                 pimpl_->app_dq_.emplace_back(std::move(app_id.first), std::move(app_id.second));
                 pimpl_->app_map_[pimpl_->app_dq_.back().app_uid_] = pimpl_->app_dq_.size() - 1;
             }
-            //requestMore(0, pimpl_->config_.start_fetch_count_);
             requestAquired(_rsent_msg_ptr);
         } else if (!_rrecv_msg_ptr) {
             solid_log(logger, Info, "no ListAppsResponse: " << _rerror.message());
@@ -137,13 +136,11 @@ void Engine::stop()
 {
 }
 
-void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>)
+void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest> &_rreq_msg)
 {
-    auto req_ptr = make_shared<front::ListAppsRequest>();
+    auto req_ptr = std::move(_rreq_msg);
 
-    //o - owned applications
     //a - aquired applications
-    //A - all applications
     req_ptr->choice_ = 'a';
     auto lambda      = [this](
                       frame::mprpc::ConnectionContext&          _rctx,
@@ -157,7 +154,6 @@ void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>)
                     pimpl_->app_dq_[it->second].flag(ApplicationStub::FlagsE::Aquired);
                 }
             }
-            //requestMore(0, pimpl_->config_.start_fetch_count_);
             requestOwned(_rsent_msg_ptr);
         } else if (!_rrecv_msg_ptr) {
             solid_log(logger, Info, "no ListAppsResponse: " << _rerror.message());
@@ -168,13 +164,11 @@ void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>)
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
 
-void Engine::requestOwned(std::shared_ptr<front::ListAppsRequest>)
+void Engine::requestOwned(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
 {
-    auto req_ptr = make_shared<front::ListAppsRequest>();
+    auto req_ptr = std::move(_rreq_msg);
 
     //o - owned applications
-    //a - aquired applications
-    //A - all applications
     req_ptr->choice_ = 'o';
     auto lambda      = [this](
                       frame::mprpc::ConnectionContext&          _rctx,
@@ -186,6 +180,34 @@ void Engine::requestOwned(std::shared_ptr<front::ListAppsRequest>)
                 const auto it = pimpl_->app_map_.find(a.second);
                 if (it != pimpl_->app_map_.end()) {
                     pimpl_->app_dq_[it->second].flag(ApplicationStub::FlagsE::Owned);
+                }
+            }
+            requestDefault(_rsent_msg_ptr);
+        } else if (!_rrecv_msg_ptr) {
+            solid_log(logger, Info, "no ListAppsResponse: " << _rerror.message());
+        } else {
+            solid_log(logger, Info, "ListAppsResponse error: " << _rrecv_msg_ptr->error_);
+        }
+    };
+    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+}
+
+void Engine::requestDefault(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
+{
+    auto req_ptr = std::move(_rreq_msg);
+
+    //d - default applications
+    req_ptr->choice_ = 'd';
+    auto lambda      = [this](
+                      frame::mprpc::ConnectionContext&          _rctx,
+                      std::shared_ptr<front::ListAppsRequest>&  _rsent_msg_ptr,
+                      std::shared_ptr<front::ListAppsResponse>& _rrecv_msg_ptr,
+                      ErrorConditionT const&                    _rerror) {
+        if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
+            for (auto& a : _rrecv_msg_ptr->app_id_vec_) {
+                const auto it = pimpl_->app_map_.find(a.second);
+                if (it != pimpl_->app_map_.end()) {
+                    pimpl_->app_dq_[it->second].flag(ApplicationStub::FlagsE::Default);
                 }
             }
             requestMore(0, pimpl_->config_.start_fetch_count_);
@@ -225,7 +247,8 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
                     std::move(_rrecv_msg_ptr->configuration_.property_vec_[2].second), //brief
                     std::move(_rrecv_msg_ptr->image_blob_),
                     pimpl_->app_dq_[i].hasFlag(ApplicationStub::FlagsE::Aquired),
-                    pimpl_->app_dq_[i].hasFlag(ApplicationStub::FlagsE::Owned));
+                    pimpl_->app_dq_[i].hasFlag(ApplicationStub::FlagsE::Owned),
+                    pimpl_->app_dq_[i].hasFlag(ApplicationStub::FlagsE::Default));
             } else /*if (_rrecv_msg_ptr->error_)*/ {
                 {
                     lock_guard<mutex> lock(pimpl_->mutex_);
@@ -335,12 +358,13 @@ void Engine::fetchItemMedia(const size_t _index, OnFetchItemMediaT _fetch_fnc)
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
 
-void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItemT _fetch_fnc) {
+void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItemT _fetch_fnc)
+{
     auto lambda = [this, _fetch_fnc](
-                      frame::mprpc::ConnectionContext&                              _rctx,
-                      std::shared_ptr<ola::front::AcquireAppRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<ola::front::Response>& _rrecv_msg_ptr,
-                      ErrorConditionT const&                                        _rerror) {
+                      frame::mprpc::ConnectionContext&                _rctx,
+                      std::shared_ptr<ola::front::AcquireAppRequest>& _rsent_msg_ptr,
+                      std::shared_ptr<ola::front::Response>&          _rrecv_msg_ptr,
+                      ErrorConditionT const&                          _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             _fetch_fnc(_rsent_msg_ptr->acquire_);
         } else {

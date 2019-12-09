@@ -211,7 +211,8 @@ void ListModel::prepareAndPushItem(
     const std::string&  _brief,
     const vector<char>& _image,
     const bool          _acquired,
-    const bool          _owned)
+    const bool          _owned,
+    const bool          _default)
 {
     //called on pool thread
     ListItem item;
@@ -221,6 +222,7 @@ void ListModel::prepareAndPushItem(
     item.name_         = QString::fromStdString(_name);
     item.owned_        = _owned;
     item.acquired_     = _acquired;
+    item.default_      = _default;
     QImage img;
     if (img.loadFromData(reinterpret_cast<const uchar*>(_image.data()), _image.size())) {
         item.image_ = img.scaled(QSize(image_width, image_height), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
@@ -450,10 +452,11 @@ void MainWindow::showItem(int _index)
     pimpl_->item_form_.media_list_widget->clear();
 
     pimpl_->item_form_.acquire_button->setChecked(item.acquired_);
+    pimpl_->item_form_.acquire_button->setEnabled(!item.default_);
 
     if (item.acquired_ && item.owned_) {
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired_owned.png"));
-    } else if (item.acquired_) {
+    } else if (item.acquired_ || item.default_) {
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired.png"));
     } else if (item.owned_) {
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/owned.png"));
@@ -508,9 +511,11 @@ void MainWindow::itemAcquireSlot(int _index, bool _acquired)
 
     if (_index == pimpl_->current_item_) {
         pimpl_->item_form_.acquire_button->setChecked(_acquired);
+        pimpl_->item_form_.acquire_button->setEnabled(!item.default_);
+
         if (item.acquired_ && item.owned_) {
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired_owned.png"));
-        } else if (item.acquired_) {
+        } else if (item.acquired_ || item.default_) {
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired.png"));
         } else if (item.owned_) {
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/owned.png"));

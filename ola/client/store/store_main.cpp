@@ -298,10 +298,11 @@ int main(int argc, char* argv[])
                                    string&&       _ubrief,
                                    vector<char>&& _uimage,
                                    const bool _aquired,
-                                   const bool _owned) {
+                                   const bool _owned,
+                                   const bool _default) {
             cwp.push(
-                [_index, _count, &rmain_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), image = std::move(_uimage), _aquired, _owned]() {
-                    rmain_window.model().prepareAndPushItem(_index, _count, name, company, brief, image, _aquired, _owned);
+                [_index, _count, &rmain_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), image = std::move(_uimage), _aquired, _owned, _default]() {
+                    rmain_window.model().prepareAndPushItem(_index, _count, name, company, brief, image, _aquired, _owned, _default);
                 });
         };
         config.on_fetch_error_fnc_ = [&cwp, &rmain_window](

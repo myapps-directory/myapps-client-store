@@ -23,6 +23,8 @@ struct ListItem {
     QImage  image_;
     bool    acquired_ = false;
     bool    owned_   = false;
+    bool    default_ = false;
+
     QVector<QPair<QString, QString>> media_vec_;
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const;
@@ -61,7 +63,8 @@ public:
         const std::string&       _brief,
         const std::vector<char>& _image,
         const bool               _aquired = true,
-        const bool               _owned   = true);
+        const bool               _owned   = true,
+        const bool               _default = true);
     void prepareAndPushItem(
         const size_t _index,
         const size_t _count);
