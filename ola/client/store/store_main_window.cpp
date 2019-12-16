@@ -1,4 +1,5 @@
 #include "store_main_window.hpp"
+#include "ui_about_form.h"
 #include "ui_account_form.h"
 #include "ui_item_form.h"
 #include "ui_list_form.h"
@@ -43,11 +44,13 @@ struct MainWindow::Data {
     Ui::ListForm    list_form_;
     Ui::ItemForm    item_form_;
     Ui::AccountForm account_form_;
+    Ui::AboutForm   about_form_;
     ItemDelegate    list_delegate_;
     int             current_item_ = -1;
     QAction         back_action_;
     QAction         home_action_;
     QAction         account_action_;
+    QAction         about_action_;
     QToolBar        tool_bar_;
     QMenu           config_menu_;
     HistoryStackT   history_;
@@ -57,6 +60,7 @@ struct MainWindow::Data {
         , back_action_(QIcon(":/images/back.png"), tr("&Back"), _pw)
         , home_action_(QIcon(":/images/home.png"), tr("&Home"), _pw)
         , account_action_(QIcon(":/images/account.png"), tr("&Account"), _pw)
+        , about_action_(QIcon(":/images/ola_store_bag.ico"), tr("A&bout"), _pw)
         , tool_bar_(_pw)
         , config_menu_(_pw)
     {
@@ -80,6 +84,9 @@ struct MainWindow::Data {
         }
         if (store_form_.itemWidget != _pw) {
             store_form_.itemWidget->hide();
+        }
+        if (store_form_.aboutWidget != _pw) {
+            store_form_.aboutWidget->hide();
         }
         _pw->show();
     }
@@ -349,6 +356,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->store_form_.setupUi(this);
     pimpl_->list_form_.setupUi(pimpl_->store_form_.listWidget);
     pimpl_->item_form_.setupUi(pimpl_->store_form_.itemWidget);
+    pimpl_->about_form_.setupUi(pimpl_->store_form_.aboutWidget);
+
     pimpl_->account_form_.setupUi(pimpl_->store_form_.accountWidget);
     pimpl_->list_form_.listView->viewport()->setAttribute(Qt::WA_Hover, true);
     pimpl_->list_form_.listView->setFlow(QListView::Flow::LeftToRight);
@@ -360,6 +369,9 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->list_form_.listView->setWrapping(true);
     pimpl_->list_form_.listView->setModel(&pimpl_->list_model_);
     pimpl_->list_form_.listView->setItemDelegate(&pimpl_->list_delegate_);
+
+    pimpl_->about_form_.image_label->setPixmap(QPixmap(":/images/ola_store_bag.png"));
+
     setWindowFlags(Qt::Drawer);
 
     installEventFilter(this);
@@ -379,6 +391,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     connect(&pimpl_->home_action_, &QAction::triggered, this, &MainWindow::goHomeSlot);
     connect(&pimpl_->account_action_, &QAction::triggered, this, &MainWindow::goAccountSlot);
     connect(&pimpl_->back_action_, &QAction::triggered, this, &MainWindow::goBackSlot);
+    connect(&pimpl_->about_action_, &QAction::triggered, this, &MainWindow::goAboutSlot);
 
     pimpl_->tool_bar_.setMovable(false);
     this->addToolBar(&pimpl_->tool_bar_);
@@ -404,6 +417,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->tool_bar_.addWidget(psearchcombo);
 
     pimpl_->config_menu_.addAction(&pimpl_->account_action_);
+    pimpl_->config_menu_.addSeparator();
+    pimpl_->config_menu_.addAction(&pimpl_->about_action_);
 
     pimpl_->showWidget(pimpl_->store_form_.listWidget);
 
@@ -641,6 +656,16 @@ void MainWindow::goBackSlot(bool)
             pimpl_->history_.top()();
         }
     }
+}
+
+void MainWindow::goAboutSlot(bool)
+{
+    pimpl_->history_.push(
+        [this]() {
+            pimpl_->showWidget(pimpl_->store_form_.aboutWidget);
+        });
+
+    pimpl_->history_.top()();
 }
 
 } //namespace store

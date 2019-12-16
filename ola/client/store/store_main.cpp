@@ -213,6 +213,7 @@ string env_config_path_prefix()
 void prepare_application();
 
 } //namespace
+
 //-----------------------------------------------------------------------------
 //      main
 //-----------------------------------------------------------------------------
@@ -281,10 +282,8 @@ int main(int argc, char* argv[])
     frameless_window.setWindowIcon(app.style()->standardIcon(QStyle::SP_DesktopIcon));
     frameless_window.setContent(&rmain_window);
     frameless_window.setWindowTitle(QApplication::tr("Store"));
-   
 
     front_configure_service(authenticator, params, front_rpc_service, aioscheduler, resolver);
-
     {
         Configuration config;
         config.language_       = "en-US";
@@ -297,17 +296,17 @@ int main(int argc, char* argv[])
                                    string&&       _ucompany,
                                    string&&       _ubrief,
                                    vector<char>&& _uimage,
-                                   const bool _aquired,
-                                   const bool _owned,
-                                   const bool _default) {
+                                   const bool     _aquired,
+                                   const bool     _owned,
+                                   const bool     _default) {
             cwp.push(
                 [_index, _count, &rmain_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), image = std::move(_uimage), _aquired, _owned, _default]() {
                     rmain_window.model().prepareAndPushItem(_index, _count, name, company, brief, image, _aquired, _owned, _default);
                 });
         };
         config.on_fetch_error_fnc_ = [&cwp, &rmain_window](
-                                   const size_t   _index,
-                                   const size_t   _count) {
+                                         const size_t _index,
+                                         const size_t _count) {
             cwp.push(
                 [_index, _count, &rmain_window]() {
                     rmain_window.model().prepareAndPushItem(_index, _count);
@@ -578,5 +577,4 @@ void prepare_application()
     }
 #endif
 }
-
 } //namespace

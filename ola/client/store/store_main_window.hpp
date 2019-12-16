@@ -131,6 +131,7 @@ private slots:
     void goHomeSlot(bool);
     void goAccountSlot(bool);
     void goBackSlot(bool);
+    void goAboutSlot(bool);
 
 private:
     void closeEvent(QCloseEvent*) override;

@@ -16,7 +16,7 @@ find_package (Qt5Gui)
 find_package (Qt5Widgets)
 
 if(${Qt5Widgets_FOUND})
-    QT5_WRAP_UI(FORMS_HEADERS store_form.ui framelesswindow.ui list_form.ui item_form.ui account_form.ui)
+    QT5_WRAP_UI(FORMS_HEADERS store_form.ui framelesswindow.ui list_form.ui item_form.ui account_form.ui about_form.ui)
     QT5_ADD_RESOURCES( FORMS_HEADERS darkstyle.qrc framelesswindow.qrc)
     
     set(SRCS
@@ -43,6 +43,20 @@ if(${Qt5Widgets_FOUND})
             ${SRCS}
             store_main.rc
         )
+
+        add_executable(
+            ola_client_launcher
+            WIN32
+            launcher_main.cpp
+        )
+
+        add_dependencies(ola_client_launcher ola_client_store)
+        target_link_libraries(
+            ola_client_launcher
+            ${SYS_BASIC_LIBS}
+            ${SYS_DYNAMIC_LOAD_LIB}
+        )
+
     elseif(APPLE)
         add_executable(
             ola_store_store
@@ -57,6 +71,7 @@ if(${Qt5Widgets_FOUND})
     endif()
 
     add_dependencies(ola_client_store build-snappy build-cereal)
+    
 
     target_link_libraries(
         ola_client_store
