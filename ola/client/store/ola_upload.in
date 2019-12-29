@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+OPTION=$1
+APPID=$2
+BUILDID=$3
+
+PROJECT_ROOT="@PROJECT_ROOT_DIR@"
+
+createBuild()
+{
+    local APPID=$1
+    local BUILDID=$2
+
+    cp *.exe tmp/build
+	cp "$PROJECT_ROOT/ola/client/store/images/ola_store_bag.ico" tmp/build
+	cp "$PROJECT_ROOT/ola/client/store/images/ola_store_bag.png" tmp
+    
+    echo -ne "create build $APPID $BUILDID ola_store.build tmp/build tmp/ola_store_bag.png\nq\n" | ola_client_cli
+}
+
+createMedia()
+{
+    local APPID=$1
+    local BUILDID=$2
+
+    echo "create media $PROJECT_ROOT"
+   
+    for filename in $PROJECT_ROOT/media/*.png; do
+        magick convert "$filename" "tmp/media/$(basename "$filename" .png).jpg"
+    done
+
+    for filename in $PROJECT_ROOT/media/*.png; do
+        magick convert -resize 384x216 "$filename" "tmp/media/$(basename "$filename" .png)t.jpg"
+    done
+
+    echo -ne "create media $APPID $BUILDID ola_store.media tmp/media\nq\n" | ola_client_cli
+}
+
+
+rm -rf tmp
+mkdir tmp
+mkdir tmp/build
+mkdir tmp/media
+if [ $OPTION == "b" ] || [ $OPTION == "A" ; then
+    createBuild $APPID $BUILDID
+fi
+
+if [ $OPTION == "m" ] || [ $OPTION == "A" ] ; then
+    createMedia $APPID $BUILDID
+fi

@@ -73,7 +73,7 @@ namespace {
 const solid::LoggerT logger("ola::client::store");
 
 struct Parameters {
-    vector<string> dbg_modules = {"ola::.*:VIEW"};
+    vector<string> dbg_modules = {"ola::client::store:VIEW"};
     string         dbg_addr;
     string         dbg_port;
     bool           dbg_console  = false;
@@ -81,10 +81,15 @@ struct Parameters {
     bool           secure;
     bool           compress;
     string         front_endpoint;
+    string         secure_prefix;
 
     Parameters() {}
 
     bool parse(ULONG argc, PWSTR* argv);
+
+    string securePath(const string &_name)const{
+        return secure_prefix + '\\' + _name;
+    }
 };
 
 struct Authenticator {
@@ -176,6 +181,7 @@ struct Authenticator {
 void front_configure_service(Authenticator& _rauth, const Parameters& _params, frame::mprpc::ServiceT& _rsvc, AioSchedulerT& _rsch, frame::aio::Resolver& _rres);
 
 //TODO: find a better name
+
 string env_log_path_prefix()
 {
     const char* v = getenv("LOCALAPPDATA");
@@ -247,7 +253,7 @@ int main(int argc, char* argv[])
         solid::log_start(std::cerr, params.dbg_modules);
     } else {
         solid::log_start(
-            (env_log_path_prefix() + "\\log\\auth").c_str(),
+            (env_log_path_prefix() + "\\log\\store").c_str(),
             params.dbg_modules,
             params.dbg_buffered,
             3,
@@ -325,6 +331,7 @@ int main(int argc, char* argv[])
 }
 
 //-----------------------------------------------------------------------------
+
 namespace {
 bool Parameters::parse(ULONG argc, PWSTR* argv)
 {
@@ -339,9 +346,11 @@ bool Parameters::parse(ULONG argc, PWSTR* argv)
 			("debug-port,P", value<string>(&dbg_port)->default_value("9999"), "Debug server port (e.g. on linux use: nc -l 9999)")
 			("debug-console,C", value<bool>(&dbg_console)->implicit_value(true)->default_value(false), "Debug console")
 			("debug-buffered,S", value<bool>(&dbg_buffered)->implicit_value(true)->default_value(false), "Debug unbuffered")
-            ("front,f", value<std::string>(&front_endpoint), "Front Server endpoint: address:port")
-			("secure,s", value<bool>(&secure)->implicit_value(true)->default_value(false), "Use SSL to secure communication")
-			("compress", value<bool>(&compress)->implicit_value(true)->default_value(false), "Use Snappy to compress communication");
+            ("front,f", value<std::string>(&front_endpoint)->default_value(string("viphost.go.ro:") + ola::front::default_port()), "Front Server endpoint: address:port")
+			("compress", value<bool>(&compress)->implicit_value(true)->default_value(false), "Use Snappy to compress communication")
+            ("unsecure", value<bool>(&secure)->implicit_value(false)->default_value(true), "Use SSL to secure communication")
+            ("secure-prefix", value<std::string>(&secure_prefix)->default_value("certs"), "Secure Path prefix")
+        ;
         // clang-format on
         variables_map vm;
         store(parse_command_line(argc, argv, desc), vm);
@@ -403,13 +412,14 @@ void front_configure_service(Authenticator& _rauth, const Parameters& _params, f
     if (_params.secure) {
         frame::mprpc::openssl::setup_client(
             cfg,
-            [](frame::aio::openssl::Context& _rctx) -> ErrorCodeT {
-                _rctx.loadVerifyFile("ola-ca-cert.pem");
-                _rctx.loadCertificateFile("ola-front-client-cert.pem");
-                _rctx.loadPrivateKeyFile("ola-front-client-key.pem");
+            [_params](frame::aio::openssl::Context& _rctx) -> ErrorCodeT {
+                solid_log(logger, Info, "Secure path: " << _params.securePath("ola-ca-cert.pem"));
+                _rctx.loadVerifyFile(_params.securePath("ola-ca-cert.pem").c_str());
+                _rctx.loadCertificateFile(_params.securePath("ola-client-front-cert.pem").c_str());
+                _rctx.loadPrivateKeyFile(_params.securePath("ola-client-front-key.pem").c_str());
                 return ErrorCodeT();
             },
-            frame::mprpc::openssl::NameCheckSecureStart{"ola-front-server"});
+            frame::mprpc::openssl::NameCheckSecureStart{"ola-server"});
     }
 
     if (_params.compress) {

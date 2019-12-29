@@ -50,6 +50,11 @@ if(${Qt5Widgets_FOUND})
             launcher_main.cpp
         )
 
+        add_executable(
+            ola_client_env
+            env_main.cpp
+        )
+
         add_dependencies(ola_client_launcher ola_client_store)
         target_link_libraries(
             ola_client_launcher
@@ -71,7 +76,9 @@ if(${Qt5Widgets_FOUND})
     endif()
 
     add_dependencies(ola_client_store build-snappy build-cereal)
-    
+    set_target_properties(
+        ola_client_store PROPERTIES
+        VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:ola_client_store>)
 
     target_link_libraries(
         ola_client_store
@@ -86,5 +93,15 @@ if(${Qt5Widgets_FOUND})
         ${SNAPPY_LIB}
         ${SYS_BASIC_LIBS}
         ${SYS_DYNAMIC_LOAD_LIB}
+    )
+
+    add_custom_command(TARGET ola_client_store POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Core> $<TARGET_FILE_DIR:ola_client_store>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Gui> $<TARGET_FILE_DIR:ola_client_store>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Widgets> $<TARGET_FILE_DIR:ola_client_store>
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/certs  $<TARGET_FILE_DIR:ola_client_store>/certs
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/ola_store.build $<TARGET_FILE_DIR:ola_client_store>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/ola_store.media $<TARGET_FILE_DIR:ola_client_store>
+        COMMAND ${CMAKE_COMMAND} -DINFILE="${CMAKE_CURRENT_SOURCE_DIR}/ola_upload.in"  -DOUTFILE=$<TARGET_FILE_DIR:ola_client_store>/ola_upload -DPROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}" -P "${CMAKE_CURRENT_SOURCE_DIR}/GenericConfigureFile.cmake"
     )
 endif()
