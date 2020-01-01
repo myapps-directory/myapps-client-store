@@ -30,7 +30,7 @@ const solid::LoggerT logger("ola::client::store::widget");
 constexpr int        image_width       = 384;
 constexpr int        image_height      = 216;
 constexpr int        item_width        = 384;
-constexpr int        item_height       = 324;
+constexpr int        item_height       = 344;
 constexpr int        item_column_count = 3;
 constexpr int        item_row_count    = 2;
 
@@ -114,7 +114,7 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
     {
         QFont font = painter->font();
         font.setBold(true);
-        font.setPointSize(font.pointSize() * 2);
+        font.setPointSize(font.pointSize() + (font.pointSize() * 50) / 100);
         painter->setFont(font);
 
         QFontMetrics fontMetrics = painter->fontMetrics();
@@ -566,6 +566,8 @@ void MainWindow::showMediaThumbnails(int _index)
                 pitem->setSizeHint(QSize(image_width, image_height) + QSize(4, 4));
                 pimpl_->item_form_.media_list_widget->addItem(pitem);
                 has_image = true;
+            } else {
+                solid_log(logger, Warning, "Failed loading media: "<<media.first.toStdString());
             }
             ++index;
         }

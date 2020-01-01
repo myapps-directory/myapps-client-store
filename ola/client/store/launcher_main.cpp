@@ -120,20 +120,20 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
         }
     }
     {
-        string qt_platform_path = qt_path.string();
-        if (!qt_platform_path.empty()) {
-            if (qt_platform_path.back() != '\\') {
-                qt_platform_path += '\\';
+        string qt_plugin_path = qt_path.string();
+        if (!qt_plugin_path.empty()) {
+            if (qt_plugin_path.back() != '\\') {
+                qt_plugin_path += '\\';
             }
-            qt_platform_path += "platforms";
-            env["QT_QPA_PLATFORM_PLUGIN_PATH"].assign(qt_platform_path);
+            qt_plugin_path += "plugins";
+            env["QT_PLUGIN_PATH"].assign(qt_plugin_path);
         } else if (!ola_bin_path.empty()) {
-            qt_platform_path = ola_bin_path;
-            if (qt_platform_path.back() != '\\') {
-                qt_platform_path += '\\';
+            qt_plugin_path = ola_bin_path;
+            if (qt_plugin_path.back() != '\\') {
+                qt_plugin_path += '\\';
             }
-            qt_platform_path += "platforms";
-            env["QT_QPA_PLATFORM_PLUGIN_PATH"].assign(qt_platform_path);
+            qt_plugin_path += "plugins";
+            env["QT_PLUGIN_PATH"].assign(qt_plugin_path);
         }
     }
 

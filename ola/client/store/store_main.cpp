@@ -73,7 +73,7 @@ namespace {
 const solid::LoggerT logger("ola::client::store");
 
 struct Parameters {
-    vector<string> dbg_modules = {"ola::client::store:VIEW"};
+    vector<string> dbg_modules = {"ola::client::store.*:VIEW"};
     string         dbg_addr;
     string         dbg_port;
     bool           dbg_console  = false;
@@ -534,7 +534,7 @@ void Authenticator::onAuthResponse(
     ErrorConditionT const&                _rerror)
 {
     if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-        solid_log(logger, Info, "AuthResponse: " << _rrecv_msg_ptr->error_ << " " << _rrecv_msg_ptr->message_);
+        solid_log(logger, Info, "AuthResponse: " << _rrecv_msg_ptr->error_ );
         _rctx.service().connectionNotifyEnterActiveState(_rctx.recipientId());
         if (active_count_.fetch_add(1) == 0) {
             on_online_fnc_();

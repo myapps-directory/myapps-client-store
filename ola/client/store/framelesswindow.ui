@@ -67,7 +67,7 @@
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>0</height>
+          <height>34</height>
          </size>
         </property>
         <property name="autoFillBackground">
@@ -152,6 +152,12 @@
          </item>
          <item>
           <widget class="QToolButton" name="minimizeButton">
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>34</height>
+            </size>
+           </property>
            <property name="font">
             <font>
              <family>Marlett</family>
@@ -182,6 +188,12 @@
          </item>
          <item>
           <widget class="QToolButton" name="restoreButton">
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>34</height>
+            </size>
+           </property>
            <property name="font">
             <font>
              <family>Marlett</family>
@@ -210,6 +222,12 @@
          </item>
          <item>
           <widget class="QToolButton" name="maximizeButton">
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>34</height>
+            </size>
+           </property>
            <property name="font">
             <font>
              <family>Marlett</family>
@@ -238,6 +256,12 @@
          </item>
          <item>
           <widget class="QToolButton" name="closeButton">
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>34</height>
+            </size>
+           </property>
            <property name="font">
             <font>
              <family>Marlett</family>

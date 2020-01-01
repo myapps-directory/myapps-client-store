@@ -11,7 +11,8 @@ createBuild()
     local APPID=$1
     local BUILDID=$2
 
-    cp *.exe tmp/build
+    cp ola_client_launcher.exe tmp/build
+    cp ola_client_store.exe tmp/build
 	cp "$PROJECT_ROOT/ola/client/store/images/ola_store_bag.ico" tmp/build
 	cp "$PROJECT_ROOT/ola/client/store/images/ola_store_bag.png" tmp
     
