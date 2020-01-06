@@ -42,7 +42,7 @@ rm -rf tmp
 mkdir tmp
 mkdir tmp/build
 mkdir tmp/media
-if [ $OPTION == "b" ] || [ $OPTION == "A" ; then
+if [ $OPTION == "b" ] || [ $OPTION == "A" ]; then
     createBuild $APPID $BUILDID
 fi
 

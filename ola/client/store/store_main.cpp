@@ -87,7 +87,8 @@ struct Parameters {
 
     bool parse(ULONG argc, PWSTR* argv);
 
-    string securePath(const string &_name)const{
+    string securePath(const string& _name) const
+    {
         return secure_prefix + '\\' + _name;
     }
 };
@@ -137,30 +138,31 @@ struct Authenticator {
     {
         return authDataDirectoryPath() / "auth.data";
     }
-    bool loadAuth(string& _user, string& _token)
+    bool loadAuth(string& _rendpoint, string& _ruser, string& _rtoken)
     {
         const auto path = authDataFilePath();
         ifstream   ifs(path.generic_string());
 
         if (ifs) {
-            getline(ifs, _user);
-            getline(ifs, _token);
+            getline(ifs, _rendpoint);
+            getline(ifs, _ruser);
+            getline(ifs, _rtoken);
             try {
-                _token = ola::utility::base64_decode(_token);
+                _rtoken = ola::utility::base64_decode(_rtoken);
             } catch (std::exception& e) {
-                _user.clear();
-                _token.clear();
+                _ruser.clear();
+                _rtoken.clear();
             }
         }
-        return !_user.empty() && !_token.empty();
+        return !_ruser.empty() && !_rtoken.empty();
     }
 
     void poll();
 
-    std::shared_ptr<front::AuthRequest> loadAuth()
+    std::shared_ptr<front::AuthRequest> loadAuth(string& _rendpoint)
     {
         string user, token;
-        if (loadAuth(user, token)) {
+        if (loadAuth(_rendpoint, user, token)) {
             return make_shared<front::AuthRequest>(token);
         } else {
             return nullptr;
@@ -295,7 +297,12 @@ int main(int argc, char* argv[])
         config.language_       = "en-US";
         config.os_             = "Windows10x86_64";
         config.front_endpoint_ = params.front_endpoint;
-        config.on_fetch_fnc_   = [&cwp, &rmain_window](
+        if (config.front_endpoint_.empty()) {
+            string user;
+            string token;
+            solid_check(authenticator.loadAuth(config.front_endpoint_, user, token), "Failed to load authentication endpoint");
+        }
+        config.on_fetch_fnc_ = [&cwp, &rmain_window](
                                    const size_t   _index,
                                    const size_t   _count,
                                    string&&       _uname,
@@ -346,7 +353,7 @@ bool Parameters::parse(ULONG argc, PWSTR* argv)
 			("debug-port,P", value<string>(&dbg_port)->default_value("9999"), "Debug server port (e.g. on linux use: nc -l 9999)")
 			("debug-console,C", value<bool>(&dbg_console)->implicit_value(true)->default_value(false), "Debug console")
 			("debug-buffered,S", value<bool>(&dbg_buffered)->implicit_value(true)->default_value(false), "Debug unbuffered")
-            ("front,f", value<std::string>(&front_endpoint)->default_value(string("viphost.go.ro:") + ola::front::default_port()), "Front Server endpoint: address:port")
+            ("front,f", value<std::string>(&front_endpoint)->default_value(""), "Front Server endpoint: address:port")
 			("compress", value<bool>(&compress)->implicit_value(true)->default_value(false), "Use Snappy to compress communication")
             ("unsecure", value<bool>(&secure)->implicit_value(false)->default_value(true), "Use SSL to secure communication")
             ("secure-prefix", value<std::string>(&secure_prefix)->default_value("certs"), "Secure Path prefix")
@@ -451,10 +458,10 @@ void Authenticator::onConnectionStart(frame::mprpc::ConnectionContext& _ctx)
 }
 void Authenticator::poll()
 {
-    string user, token;
+    string endpoint, user, token;
     while (running_) {
         this_thread::sleep_for(chrono::seconds(1));
-        if (loadAuth(user, token)) {
+        if (loadAuth(endpoint, user, token)) {
             auto auth_ptr = make_shared<front::AuthRequest>(user, token);
             auto lambda   = [this](
                               frame::mprpc::ConnectionContext&      _rctx,
@@ -497,8 +504,8 @@ void Authenticator::onConnectionInit(frame::mprpc::ConnectionContext& _rctx)
             recipient_q_.emplace(_rctx.recipientId());
             return;
         }
-
-        auto auth_ptr = loadAuth();
+        string endpoint;
+        auto   auth_ptr = loadAuth(endpoint);
 
         if (auth_ptr) {
             auto lambda = [this](
@@ -534,7 +541,7 @@ void Authenticator::onAuthResponse(
     ErrorConditionT const&                _rerror)
 {
     if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-        solid_log(logger, Info, "AuthResponse: " << _rrecv_msg_ptr->error_ );
+        solid_log(logger, Info, "AuthResponse: " << _rrecv_msg_ptr->error_);
         _rctx.service().connectionNotifyEnterActiveState(_rctx.recipientId());
         if (active_count_.fetch_add(1) == 0) {
             on_online_fnc_();
