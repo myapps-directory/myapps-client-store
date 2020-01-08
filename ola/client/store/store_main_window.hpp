@@ -82,6 +82,7 @@ public:
     Engine& engine() {
         return rengine_;
     }
+
 signals:
     void newItemSignal();
     void numberPopulated(int number);
@@ -112,6 +113,9 @@ public:
     MainWindow(Engine& _rengine, QWidget* parent = 0);
     ~MainWindow();
     ListModel& model();
+
+private:
+    void resizeEvent(QResizeEvent* event) override;
 signals:
     void closeSignal();
     void offlineSignal(bool);

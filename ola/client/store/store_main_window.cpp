@@ -54,6 +54,7 @@ struct MainWindow::Data {
     QToolBar        tool_bar_;
     QMenu           config_menu_;
     HistoryStackT   history_;
+    QImage          current_image_;
 
     Data(Engine& _rengine, MainWindow* _pw)
         : list_model_(_rengine)
@@ -104,9 +105,9 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
         pen_color = option.palette.highlight().color();
         painter->setPen(pen_color);
     }
-
+    painter->translate(option.rect.x(), option.rect.y());
     painter->setBrush(QBrush(QColor(100, 0, 0)));
-    painter->drawImage(QPoint(option.rect.x(), option.rect.y()), image_);
+    painter->drawImage(QPoint((image_width - image_.width()) / 2, (image_height - image_.height()) / 2), image_);
 
     QFont base_font = painter->font();
 
@@ -127,7 +128,7 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
             QString lastLine       = this->name_;
             QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideRight, item_width);
 
-            painter->drawText(QPoint(option.rect.x(), option.rect.y() + fontMetrics.ascent() + lineSpacing), elidedLastLine);
+            painter->drawText(QPoint(0, 0 + fontMetrics.ascent() + lineSpacing), elidedLastLine);
             painter->setPen(option.palette.highlight().color());
         }
         lineSpacing += fontMetrics.lineSpacing();
@@ -135,13 +136,13 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
         layout.endLayout();
     }
     {
-        const int pix_x = option.rect.x() + image_width - 32;
+        const int pix_x = image_width - 32;
         if (acquired_ && owned_) {
-            painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _acquired_owned_pix);
+            painter->drawPixmap(QRect(pix_x, 0, 32, 32), _acquired_owned_pix);
         } else if (acquired_) {
-            painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _acquired_pix);
+            painter->drawPixmap(QRect(pix_x, 0, 32, 32), _acquired_pix);
         } else if (owned_) {
-            painter->drawPixmap(QRect(pix_x, option.rect.y(), 32, 32), _owned_pix);
+            painter->drawPixmap(QRect(pix_x, 0, 32, 32), _owned_pix);
         }
     }
 
@@ -162,7 +163,7 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
             QString lastLine       = this->company_;
             QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideRight, item_width);
             painter->setPen(QColor(180, 180, 180));
-            painter->drawText(QPoint(option.rect.x(), option.rect.y() + fontMetrics.ascent() + lineSpacing), elidedLastLine);
+            painter->drawText(QPoint(0, fontMetrics.ascent() + lineSpacing), elidedLastLine);
             painter->setPen(pen_color);
         }
         lineSpacing += fontMetrics.lineSpacing();
@@ -189,12 +190,12 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
             int nextLineY = y + line_spacing;
 
             if ((item_height - lineSpacing) >= nextLineY + line_spacing) {
-                line.draw(painter, QPoint(option.rect.x(), option.rect.y() + lineSpacing + y));
+                line.draw(painter, QPoint(0, lineSpacing + y));
                 y = nextLineY;
             } else {
                 QString lastLine       = brief_.mid(line.textStart());
                 QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideRight, item_width);
-                painter->drawText(QPoint(option.rect.x(), option.rect.y() + fontMetrics.ascent() + lineSpacing + y), elidedLastLine);
+                painter->drawText(QPoint(0, fontMetrics.ascent() + lineSpacing + y), elidedLastLine);
                 line = layout.createLine();
                 break;
             }
@@ -232,7 +233,7 @@ void ListModel::prepareAndPushItem(
     item.default_      = _default;
     QImage img;
     if (img.loadFromData(reinterpret_cast<const uchar*>(_image.data()), _image.size())) {
-        item.image_ = img.scaled(QSize(image_width, image_height), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        item.image_ = img.scaled(QSize(image_width, image_height), Qt::KeepAspectRatio, Qt::SmoothTransformation);
     }
 
     {
@@ -562,12 +563,12 @@ void MainWindow::showMediaThumbnails(int _index)
             QImage image;
             if (image.load(media.first)) {
                 auto* pitem = new ThumbnailItem(index);
-                pitem->setData(Qt::DecorationRole, QPixmap::fromImage(image.scaled(QSize(image_width, image_height), Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
+                pitem->setData(Qt::DecorationRole, QPixmap::fromImage(image.scaled(QSize(image_width, image_height), Qt::KeepAspectRatio, Qt::SmoothTransformation)));
                 pitem->setSizeHint(QSize(image_width, image_height) + QSize(4, 4));
                 pimpl_->item_form_.media_list_widget->addItem(pitem);
                 has_image = true;
             } else {
-                solid_log(logger, Warning, "Failed loading media: "<<media.first.toStdString());
+                solid_log(logger, Warning, "Failed loading media: " << media.first.toStdString());
             }
             ++index;
         }
@@ -620,15 +621,24 @@ void MainWindow::imageDoubleClicked(QListWidgetItem* _item)
             const auto&    item = pimpl_->list_model_.item(item_index);
             const QString& path = item.media_vec_[image_index].second;
 
-            QImage image;
-            if (image.load(path)) {
-                pimpl_->store_form_.image_label->setPixmap(QPixmap(QPixmap::fromImage(image)));
-                pimpl_->store_form_.image_label->adjustSize();
+            if (pimpl_->current_image_.load(path)) {
+                const int w = pimpl_->store_form_.centralwidget->width();
+                const int h = pimpl_->store_form_.centralwidget->height();
+                pimpl_->store_form_.image_label->setPixmap(QPixmap::fromImage(pimpl_->current_image_.scaled(QSize(w, h), Qt::KeepAspectRatio, Qt::SmoothTransformation)));
                 pimpl_->showWidget(pimpl_->store_form_.imageWidget);
             }
         });
 
     pimpl_->history_.top()();
+}
+
+void MainWindow::resizeEvent(QResizeEvent* event)
+{
+    if (pimpl_->store_form_.imageWidget->isVisible()) {
+        const int w = pimpl_->store_form_.centralwidget->width();
+        const int h = pimpl_->store_form_.centralwidget->height();
+        pimpl_->store_form_.image_label->setPixmap(QPixmap::fromImage(pimpl_->current_image_.scaled(QSize(w, h), Qt::KeepAspectRatio, Qt::SmoothTransformation)));             
+    }
 }
 
 void MainWindow::goHomeSlot(bool)
