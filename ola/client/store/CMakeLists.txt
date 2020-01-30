@@ -5,15 +5,32 @@ set(CMAKE_AUTOMOC ON)
 # Create code from a list of Qt designer ui files
 set(CMAKE_AUTOUIC ON)
 
-set(Qt5Widgets_DIR ${QT5PREFIX_DIR}/Qt5Widgets)
-set(Qt5Core_DIR ${QT5PREFIX_DIR}/Qt5Core)
-set(Qt5Gui_DIR ${QT5PREFIX_DIR}/Qt5Gui)
+set(Qt5_DIR ${QT5PREFIX_DIR}/Qt5)
 
-message("Finding Qt5 from ${Qt5Widgets_DIR}")
+message("Finding Qt5 from ${Qt5_DIR}")
+find_package(Qt5 COMPONENTS Core Widgets Gui)
 
-find_package (Qt5Core)
-find_package (Qt5Gui)
-find_package (Qt5Widgets)
+if(Qt5_FOUND AND WIN32 AND NOT TARGET Qt5::windeployqt)
+    message("Finding Qt5 windeployqt")
+    get_target_property(_qt5_qmake_location Qt5::qmake IMPORTED_LOCATION)
+
+    execute_process(
+        COMMAND "${_qt5_qmake_location}" -query QT_INSTALL_PREFIX
+        RESULT_VARIABLE return_code
+        OUTPUT_VARIABLE qt5_install_prefix
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    set(imported_location "${qt5_install_prefix}/bin/windeployqt.exe")
+
+    if(EXISTS ${imported_location})
+        add_executable(Qt5::windeployqt IMPORTED)
+
+        set_target_properties(Qt5::windeployqt PROPERTIES
+            IMPORTED_LOCATION ${imported_location}
+        )
+    endif()
+endif()
 
 if(${Qt5Widgets_FOUND})
     QT5_WRAP_UI(FORMS_HEADERS store_form.ui framelesswindow.ui list_form.ui item_form.ui account_form.ui about_form.ui)
@@ -43,6 +60,25 @@ if(${Qt5Widgets_FOUND})
             ${SRCS}
             store_main.rc
         )
+
+        if(TARGET Qt5::windeployqt)
+            if(CMAKE_BUILD_TYPE MATCHES "debug")
+                set(BUILD_TYPE "--debug")
+            else()
+                set(BUILD_TYPE "--release")
+            endif()
+            # execute windeployqt in a tmp directory after build
+            add_custom_command(TARGET ola_client_store
+                POST_BUILD
+                #COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:ola_client_store>/windeployqt
+                COMMAND set PATH=%PATH%$<SEMICOLON>${qt5_install_prefix}/bin
+                COMMAND Qt5::windeployqt ${BUILD_TYPE} "$<TARGET_FILE_DIR:ola_client_store>/$<TARGET_FILE_NAME:ola_client_store>"
+            )
+
+            # copy deployment directory during installation
+            install(DIRECTORY $<TARGET_FILE_DIR:ola_client_store>//windeployqt/ DESTINATION bin PATTERN "windeployqt/*")
+        endif()
+
 
         add_executable(
             ola_client_launcher
