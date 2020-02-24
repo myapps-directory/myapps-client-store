@@ -118,8 +118,8 @@ void Engine::start(Configuration&& _rcfg)
                       std::shared_ptr<front::ListAppsResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                    _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-            for (auto& app_id : _rrecv_msg_ptr->app_id_vec_) {
-                pimpl_->app_dq_.emplace_back(std::move(app_id.first), std::move(app_id.second));
+            for (auto& app_id : _rrecv_msg_ptr->app_vec_) {
+                pimpl_->app_dq_.emplace_back(std::move(app_id.id_), std::move(app_id.unique_));
                 pimpl_->app_map_[pimpl_->app_dq_.back().app_uid_] = pimpl_->app_dq_.size() - 1;
             }
             requestAquired(_rsent_msg_ptr);
@@ -148,8 +148,8 @@ void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest> &_rreq_msg)
                       std::shared_ptr<front::ListAppsResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                    _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-            for (auto& a : _rrecv_msg_ptr->app_id_vec_) {
-                const auto it = pimpl_->app_map_.find(a.second);
+            for (auto& a : _rrecv_msg_ptr->app_vec_) {
+                const auto it = pimpl_->app_map_.find(a.unique_);
                 if (it != pimpl_->app_map_.end()) {
                     pimpl_->app_dq_[it->second].flag(ApplicationStub::FlagsE::Aquired);
                 }
@@ -176,8 +176,8 @@ void Engine::requestOwned(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
                       std::shared_ptr<front::ListAppsResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                    _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-            for (auto& a : _rrecv_msg_ptr->app_id_vec_) {
-                const auto it = pimpl_->app_map_.find(a.second);
+            for (auto& a : _rrecv_msg_ptr->app_vec_) {
+                const auto it = pimpl_->app_map_.find(a.unique_);
                 if (it != pimpl_->app_map_.end()) {
                     pimpl_->app_dq_[it->second].flag(ApplicationStub::FlagsE::Owned);
                 }
@@ -204,8 +204,8 @@ void Engine::requestDefault(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
                       std::shared_ptr<front::ListAppsResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                    _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-            for (auto& a : _rrecv_msg_ptr->app_id_vec_) {
-                const auto it = pimpl_->app_map_.find(a.second);
+            for (auto& a : _rrecv_msg_ptr->app_vec_) {
+                const auto it = pimpl_->app_map_.find(a.unique_);
                 if (it != pimpl_->app_map_.end()) {
                     pimpl_->app_dq_[it->second].flag(ApplicationStub::FlagsE::Default);
                 }

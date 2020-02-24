@@ -302,6 +302,9 @@ int main(int argc, char* argv[])
             string token;
             solid_check(authenticator.loadAuth(config.front_endpoint_, user, token), "Failed to load authentication endpoint");
         }
+
+        front_rpc_service.createConnectionPool(config.front_endpoint_.c_str(), 1);
+
         config.on_fetch_fnc_ = [&cwp, &rmain_window](
                                    const size_t   _index,
                                    const size_t   _count,
