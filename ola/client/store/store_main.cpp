@@ -232,6 +232,17 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
     LPWSTR* wargv   = CommandLineToArgvW(GetCommandLineW(), &wargc);
     int     argc    = 1;
     char*   argv[1] = {GetCommandLineA()};
+
+    {
+        const auto m_singleInstanceMutex = CreateMutex(NULL, TRUE, L"OLA_STORE_SHARED_MUTEX");
+        if (m_singleInstanceMutex == NULL || GetLastError() == ERROR_ALREADY_EXISTS) {
+            HWND existingApp = FindWindow(0, L"MyApps.space Store");
+            if (existingApp) {
+                SetForegroundWindow(existingApp);
+            }
+            return -1; // Exit the app. For MFC, return false from InitInstance.
+        }
+    }
 #else
 int main(int argc, char* argv[])
 {
@@ -275,11 +286,11 @@ int main(int argc, char* argv[])
     MainWindow&            rmain_window = *(new MainWindow(engine, &frameless_window));
 
     authenticator.on_offline_fnc_ = [&frameless_window]() {
-        frameless_window.setWindowTitle(QApplication::tr("Store - Offline"));
+        frameless_window.setWindowTitle(QApplication::tr("MyApps.space Store - Offline"));
     };
 
     authenticator.on_online_fnc_ = [&frameless_window]() {
-        frameless_window.setWindowTitle(QApplication::tr("Store"));
+        frameless_window.setWindowTitle(QApplication::tr("MyApps.space Store"));
     };
 
     aioscheduler.start(1);
@@ -289,7 +300,7 @@ int main(int argc, char* argv[])
 
     frameless_window.setWindowIcon(app.style()->standardIcon(QStyle::SP_DesktopIcon));
     frameless_window.setContent(&rmain_window);
-    frameless_window.setWindowTitle(QApplication::tr("Store"));
+    frameless_window.setWindowTitle(QApplication::tr("MyApps.space Store"));
 
     front_configure_service(authenticator, params, front_rpc_service, aioscheduler, resolver);
     {
@@ -334,6 +345,8 @@ int main(int argc, char* argv[])
 
     frameless_window.setWindowIcon(QIcon(":/images/ola_store_bag.ico"));
     frameless_window.show();
+
+    SetWindowText(GetActiveWindow(), L"MyApps.space Store");
 
     const int rv = app.exec();
     front_rpc_service.stop();

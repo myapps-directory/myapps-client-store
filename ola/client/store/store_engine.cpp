@@ -91,7 +91,7 @@ public:
     string localMediaPath(const string& _path, const string& _storage_id, const string& _unique) const
     {
         //TODO:
-        return "c:\\ola\\.m\\" + utility::hex_encode(_storage_id) + '\\' + _path;
+        return "c:\\MyApps.space\\.m\\" + utility::hex_encode(_storage_id) + '\\' + _path;
     }
 };
 
