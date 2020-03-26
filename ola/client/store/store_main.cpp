@@ -272,6 +272,7 @@ int main(int argc, char* argv[])
             3,
             1024 * 1024 * 64);
     }
+    QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 
     QApplication           app(argc, argv);
     AioSchedulerT          aioscheduler;
