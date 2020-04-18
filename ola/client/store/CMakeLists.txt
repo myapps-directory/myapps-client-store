@@ -33,20 +33,16 @@ if(Qt5_FOUND AND WIN32 AND NOT TARGET Qt5::windeployqt)
 endif()
 
 if(${Qt5Widgets_FOUND})
-    QT5_WRAP_UI(FORMS_HEADERS store_form.ui framelesswindow.ui list_form.ui item_form.ui account_form.ui about_form.ui)
-    QT5_ADD_RESOURCES( FORMS_HEADERS darkstyle.qrc framelesswindow.qrc)
+    QT5_WRAP_UI(FORMS_HEADERS store_form.ui list_form.ui item_form.ui account_form.ui about_form.ui)
+    QT5_ADD_RESOURCES(FORMS_HEADERS store_main.qrc)
     
     set(SRCS
         store_form.ui
         store_main.cpp
         store_main_window.cpp
         store_main_window.hpp
-        framelesswindow.h
-        framelesswindow.cpp
         store_engine.cpp
         store_engine.hpp
-        DarkStyle.cpp
-        DarkStyle.h
         windowdragger.h
         windowdragger.cpp
         ${FORMS_HEADERS}
@@ -118,6 +114,7 @@ if(${Qt5Widgets_FOUND})
 
     target_link_libraries(
         ola_client_store
+        ola_client_utility
 		ola_utility
         solid_frame_mprpc
         solid_frame_aio_openssl

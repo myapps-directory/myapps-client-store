@@ -15,6 +15,32 @@ namespace ola {
 namespace client {
 namespace store {
 
+struct Sizes {
+    double scale_x_;
+    double scale_y_;
+    int image_width_;
+    int image_height_;
+    int item_width_;
+    int item_height_;
+
+    Sizes(
+        double _scale_x,
+        double _scale_y,
+        int _image_width,
+        int _image_height,
+        int _item_width,
+        int _item_height)
+        : scale_x_(_scale_x)
+        , scale_y_(_scale_y)
+        , image_width_(_image_width * scale_x_)
+        , image_height_(_image_height * scale_y_)
+        , item_width_(_item_width * scale_x_)
+        , item_height_(_item_height * scale_y_)
+    {
+    }
+};
+
+
 struct ListItem {
     size_t  engine_index_ = -1;
     QString name_;
@@ -27,7 +53,7 @@ struct ListItem {
 
     QVector<QPair<QString, QString>> media_vec_;
 
-    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const;
+    void paint(QPainter* painter, const Sizes &_rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const;
 };
 
 Q_DECLARE_METATYPE(const ListItem*)
@@ -45,9 +71,10 @@ class ListModel : public QAbstractListModel {
     size_t               engine_fetch_index_ = 0;
     mutable bool         requested_more_     = false;
     size_t               request_more_index_ = 0;
+    const Sizes&         rsizes_;
 
 public:
-    ListModel(Engine& _rengine, QObject* parent = nullptr);
+    ListModel(Engine& _rengine, const Sizes &_rsizes, QObject* parent = nullptr);
 
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
 
@@ -94,13 +121,14 @@ private slots:
 class ItemDelegate : public QStyledItemDelegate {
     Q_OBJECT
 public:
-    ItemDelegate();
+    ItemDelegate(const Sizes &_rszs);
     void  paint(QPainter* painter, const QStyleOptionViewItem& option,
          const QModelIndex& index) const override;
     QSize sizeHint(const QStyleOptionViewItem& option,
         const QModelIndex&                     index) const override;
 
 private:
+    const Sizes& rsizes_;
     QPixmap acquired_pix_;
     QPixmap owned_pix_;
     QPixmap acquired_owned_pix_;

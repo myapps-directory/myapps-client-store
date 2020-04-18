@@ -5,6 +5,8 @@
 #include "ui_list_form.h"
 #include "ui_store_form.h"
 #include <QAction>
+#include <QApplication>
+#include <QDesktopWidget>
 #include <QComboBox>
 #include <QImageReader>
 #include <QKeyEvent>
@@ -27,25 +29,23 @@ namespace store {
 
 namespace {
 const solid::LoggerT logger("ola::client::store::widget");
-constexpr int        image_width       = 384;
-constexpr int        image_height      = 216;
-constexpr int        item_width        = 384;
-constexpr int        item_height       = 344;
+constexpr int        g_image_width       = 384;
+constexpr int        g_image_height      = 216;
+constexpr int        g_item_width        = 384;
+constexpr int        g_item_height       = 344;
 constexpr int        item_column_count = 3;
 constexpr int        item_row_count    = 2;
 
 using HistoryFunctionT = std::function<void()>;
-using HistoryStackT    = std::stack<HistoryFunctionT>;
+using HistoryStackT    = std::stack<std::pair<const QWidget*, HistoryFunctionT>>;
 } //namespace
 
 struct MainWindow::Data {
-    ListModel       list_model_;
     Ui::StoreForm   store_form_;
     Ui::ListForm    list_form_;
     Ui::ItemForm    item_form_;
     Ui::AccountForm account_form_;
     Ui::AboutForm   about_form_;
-    ItemDelegate    list_delegate_;
     int             current_item_ = -1;
     QAction         back_action_;
     QAction         home_action_;
@@ -55,13 +55,20 @@ struct MainWindow::Data {
     QMenu           config_menu_;
     HistoryStackT   history_;
     QImage          current_image_;
+    int             dpi_x_   = QApplication::desktop()->logicalDpiX();
+    int             dpi_y_   = QApplication::desktop()->logicalDpiY();
+    double          scale_x_ = double(dpi_x_) / 120.0; //173.0 / double(dpi_x_);
+    double          scale_y_ = double(dpi_y_) / 120.0; //166.0 / double(dpi_y_);
+    Sizes           sizes_{scale_x_, scale_y_, g_image_width, g_image_height, g_item_width, g_item_height};
+    ItemDelegate    list_delegate_{sizes_};
+    ListModel       list_model_;
 
     Data(Engine& _rengine, MainWindow* _pw)
-        : list_model_(_rengine)
+        : list_model_(_rengine, sizes_)
         , back_action_(QIcon(":/images/back.png"), tr("&Back"), _pw)
         , home_action_(QIcon(":/images/home.png"), tr("&Home"), _pw)
         , account_action_(QIcon(":/images/account.png"), tr("&Account"), _pw)
-        , about_action_(QIcon(":/images/ola_store_bag.ico"), tr("A&bout"), _pw)
+        , about_action_(QIcon(":/images/about.png"), tr("A&bout"), _pw)
         , tool_bar_(_pw)
         , config_menu_(_pw)
     {
@@ -91,9 +98,20 @@ struct MainWindow::Data {
         }
         _pw->show();
     }
+
+    template <class F>
+    HistoryFunctionT& historyPush(const QWidget *_pw, F _f)
+    {
+        if (history_.empty() || _pw == nullptr || history_.top().first != _pw) {
+            history_.emplace(_pw, _f);
+        } else {
+            history_.top().second = std::move(_f);
+        }
+        return history_.top().second;
+    }
 };
 
-void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const
+void ListItem::paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const
 {
     painter->setRenderHint(QPainter::Antialiasing, true);
 
@@ -107,11 +125,11 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
     }
     painter->translate(option.rect.x(), option.rect.y());
     painter->setBrush(QBrush(QColor(100, 0, 0)));
-    painter->drawImage(QPoint((image_width - image_.width()) / 2, (image_height - image_.height()) / 2), image_);
+    painter->drawImage(QPoint((_rszs.image_width_ - image_.width()) / 2, (_rszs.image_height_ - image_.height()) / 2), image_);
 
     QFont base_font = painter->font();
 
-    int lineSpacing = image_height;
+    int lineSpacing = _rszs.image_height_;
     {
         QFont font = painter->font();
         font.setBold(true);
@@ -124,9 +142,9 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
         QTextLine line = layout.createLine();
 
         if (line.isValid()) {
-            line.setLineWidth(item_width);
+            line.setLineWidth(_rszs.item_width_);
             QString lastLine       = this->name_;
-            QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideRight, item_width);
+            QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideRight, _rszs.item_width_);
 
             painter->drawText(QPoint(0, 0 + fontMetrics.ascent() + lineSpacing), elidedLastLine);
             painter->setPen(option.palette.highlight().color());
@@ -136,7 +154,7 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
         layout.endLayout();
     }
     {
-        const int pix_x = image_width - 32;
+        const int pix_x = _rszs.image_width_ - 32;
         if (acquired_ && owned_) {
             painter->drawPixmap(QRect(pix_x, 0, 32, 32), _acquired_owned_pix);
         } else if (acquired_) {
@@ -159,9 +177,9 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
         QTextLine line = layout.createLine();
 
         if (line.isValid()) {
-            line.setLineWidth(item_width);
+            line.setLineWidth(_rszs.item_width_);
             QString lastLine       = this->company_;
-            QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideRight, item_width);
+            QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideRight, _rszs.item_width_);
             painter->setPen(QColor(180, 180, 180));
             painter->drawText(QPoint(0, fontMetrics.ascent() + lineSpacing), elidedLastLine);
             painter->setPen(pen_color);
@@ -186,15 +204,15 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
             if (!line.isValid())
                 break;
 
-            line.setLineWidth(item_width);
+            line.setLineWidth(_rszs.item_width_);
             int nextLineY = y + line_spacing;
 
-            if ((item_height - lineSpacing) >= nextLineY + line_spacing) {
+            if ((_rszs.item_height_ - lineSpacing) >= nextLineY + line_spacing) {
                 line.draw(painter, QPoint(0, lineSpacing + y));
                 y = nextLineY;
             } else {
                 QString lastLine       = brief_.mid(line.textStart());
-                QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideRight, item_width);
+                QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideRight, _rszs.item_width_);
                 painter->drawText(QPoint(0, fontMetrics.ascent() + lineSpacing + y), elidedLastLine);
                 line = layout.createLine();
                 break;
@@ -204,8 +222,9 @@ void ListItem::paint(QPainter* painter, const QStyleOptionViewItem& option, cons
     }
 }
 
-ListModel::ListModel(Engine& _rengine, QObject* parent)
+ListModel::ListModel(Engine& _rengine, const Sizes &_rsizes, QObject* parent)
     : QAbstractListModel(parent)
+    , rsizes_(_rsizes)
     , rengine_(_rengine)
 {
     connect(this, SIGNAL(newItemSignal()), this, SLOT(newItemsSlot()), Qt::QueuedConnection);
@@ -233,7 +252,7 @@ void ListModel::prepareAndPushItem(
     item.default_      = _default;
     QImage img;
     if (img.loadFromData(reinterpret_cast<const uchar*>(_image.data()), _image.size())) {
-        item.image_ = img.scaled(QSize(image_width, image_height), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        item.image_ = img.scaled(QSize(rsizes_.image_width_, rsizes_.image_height_), Qt::KeepAspectRatio, Qt::SmoothTransformation);
     }
 
     {
@@ -320,8 +339,9 @@ void ListModel::newItemsSlot()
     emit numberPopulated(count_);
 }
 
-ItemDelegate::ItemDelegate()
-    : acquired_pix_(":/images/acquired.png")
+ItemDelegate::ItemDelegate(const Sizes& _rsizes)
+    : rsizes_(_rsizes)
+    , acquired_pix_(":/images/acquired.png")
     , owned_pix_(":/images/owned.png")
     , acquired_owned_pix_(":/images/acquired_owned.png")
 {
@@ -335,7 +355,7 @@ void ItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
 
         painter->save();
 
-        pitem->paint(painter, option, acquired_pix_, owned_pix_, acquired_owned_pix_);
+        pitem->paint(painter, rsizes_, option, acquired_pix_, owned_pix_, acquired_owned_pix_);
 
         painter->restore();
     } else {
@@ -345,7 +365,7 @@ void ItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
 QSize ItemDelegate::sizeHint(const QStyleOptionViewItem& option,
     const QModelIndex&                                   index) const
 {
-    return QSize(item_width, item_height);
+    return QSize(rsizes_.item_width_, rsizes_.item_height_);
 }
 
 MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
@@ -353,6 +373,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     , pimpl_(solid::make_pimpl<Data>(_rengine, this))
 {
     qRegisterMetaType<VectorPairStringT>("VectorPairStringT");
+
+    setWindowFlags(windowFlags() & (~Qt::WindowMaximizeButtonHint));
 
     pimpl_->store_form_.setupUi(this);
     pimpl_->list_form_.setupUi(pimpl_->store_form_.listWidget);
@@ -365,7 +387,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->list_form_.listView->setViewMode(QListView::IconMode);
     pimpl_->list_form_.listView->setMovement(QListView::Static);
     pimpl_->list_form_.listView->setResizeMode(QListView::Adjust);
-    pimpl_->list_form_.listView->setGridSize(QSize(item_width, item_height));
+    pimpl_->list_form_.listView->setGridSize(QSize(pimpl_->sizes_.item_width_, pimpl_->sizes_.item_height_));
     pimpl_->list_form_.listView->setWordWrap(true);
     pimpl_->list_form_.listView->setWrapping(true);
     pimpl_->list_form_.listView->setModel(&pimpl_->list_model_);
@@ -373,8 +395,20 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
 
     pimpl_->about_form_.image_label->setPixmap(QPixmap(":/images/ola_store_bag.png"));
 
-    setWindowFlags(Qt::Drawer);
+    //setWindowFlags(Qt::Drawer);
+    {
+        int   aElements[2] = {COLOR_WINDOW, COLOR_ACTIVECAPTION};
+        DWORD aOldColors[2];
 
+        aOldColors[0] = GetSysColor(aElements[0]);
+
+        QPalette     pal = palette();
+        const QColor win_color(GetRValue(aOldColors[0]), GetGValue(aOldColors[0]), GetBValue(aOldColors[0]));
+        // set black background
+        pal.setColor(QPalette::Window, win_color);
+        setAutoFillBackground(true);
+        setPalette(pal);
+    }
     installEventFilter(this);
 
     connect(this, SIGNAL(offlineSignal(bool)), this, SLOT(onOffline(bool)), Qt::QueuedConnection);
@@ -395,6 +429,10 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     connect(&pimpl_->about_action_, &QAction::triggered, this, &MainWindow::goAboutSlot);
 
     pimpl_->tool_bar_.setMovable(false);
+    pimpl_->tool_bar_.setFixedHeight(38 * pimpl_->scale_y_);
+    pimpl_->tool_bar_.setIconSize(QSize(32 * pimpl_->scale_x_, 32 * pimpl_->scale_y_));
+    pimpl_->tool_bar_.setStyleSheet("QToolBar { border: 0px }");
+    pimpl_->tool_bar_.setMovable(false);
     this->addToolBar(&pimpl_->tool_bar_);
 
     QToolButton* ptoolbutton = new QToolButton;
@@ -403,8 +441,6 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     ptoolbutton->setMenu(&pimpl_->config_menu_);
     ptoolbutton->setPopupMode(QToolButton::ToolButtonPopupMode::InstantPopup);
 
-    pimpl_->tool_bar_.addWidget(ptoolbutton);
-    pimpl_->tool_bar_.addSeparator();
     pimpl_->tool_bar_.addAction(&pimpl_->back_action_);
     pimpl_->tool_bar_.addAction(&pimpl_->home_action_);
     QComboBox* psearchcombo = new QComboBox;
@@ -414,18 +450,25 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     psearchcombo->setEditText("All");
     psearchcombo->setToolTip(tr("Search"));
 
+    QWidget* empty = new QWidget();
+    empty->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    
     pimpl_->tool_bar_.addSeparator();
     pimpl_->tool_bar_.addWidget(psearchcombo);
+    pimpl_->tool_bar_.addWidget(empty);
+    pimpl_->tool_bar_.addSeparator();
+    pimpl_->tool_bar_.addWidget(ptoolbutton);
+    pimpl_->tool_bar_.addSeparator();
+    pimpl_->tool_bar_.addAction(&pimpl_->about_action_);
 
     pimpl_->config_menu_.addAction(&pimpl_->account_action_);
-    pimpl_->config_menu_.addSeparator();
-    pimpl_->config_menu_.addAction(&pimpl_->about_action_);
 
     pimpl_->showWidget(pimpl_->store_form_.listWidget);
 
-    parent->resize(QSize(item_width * item_column_count + 60, item_height * item_row_count + 133));
+    resize(QSize((pimpl_->sizes_.item_width_ * item_column_count + 60), (pimpl_->sizes_.item_height_ * item_row_count + 133)));
 
-    pimpl_->history_.push(
+    pimpl_->history_.emplace(
+        pimpl_->store_form_.listWidget,
         [this]() {
             pimpl_->showWidget(pimpl_->store_form_.listWidget);
         });
@@ -446,19 +489,23 @@ void MainWindow::onOffline(bool _b)
 void MainWindow::onItemDoubleClicked(const QModelIndex& _index)
 {
     solid_log(logger, Verbose, "" << _index.row());
-    pimpl_->history_.push(
+
+    pimpl_->historyPush(
+        nullptr,
         [this, index = _index.row()]() {
             showItem(index);
             pimpl_->showWidget(pimpl_->store_form_.itemWidget);
-        });
-
-    pimpl_->history_.top()();
+        })();
 }
 
 void MainWindow::showItem(int _index)
 {
+    const QSize img_size{pimpl_->sizes_.image_width_, pimpl_->sizes_.image_height_};
+
     pimpl_->current_item_ = _index;
     auto& item            = pimpl_->list_model_.item(pimpl_->current_item_);
+    pimpl_->item_form_.frame->setFixedHeight(pimpl_->sizes_.image_height_);
+    pimpl_->item_form_.image_label->setFixedSize(img_size);
     pimpl_->item_form_.image_label->setPixmap(QPixmap::fromImage(item.image_));
     pimpl_->item_form_.name_label->setText(item.name_);
     pimpl_->item_form_.company_label->setText(item.company_);
@@ -555,16 +602,22 @@ void MainWindow::showMediaThumbnails(int _index)
 {
     auto& item = pimpl_->list_model_.item(_index);
 
+
+
     if (item.media_vec_.size()) {
-        pimpl_->item_form_.media_list_widget->setMinimumHeight(image_height + 20);
+        const QSize thumb_size{pimpl_->sizes_.image_width_, pimpl_->sizes_.image_height_};
+
+        pimpl_->item_form_.media_list_widget->setIconSize(thumb_size);
+        pimpl_->item_form_.media_list_widget->setGridSize(thumb_size);
+        pimpl_->item_form_.media_list_widget->setMinimumHeight(pimpl_->sizes_.image_height_ + 20);
         bool   has_image = false;
         size_t index     = 0;
         for (const auto& media : item.media_vec_) {
             QImage image;
             if (image.load(media.first)) {
                 auto* pitem = new ThumbnailItem(index);
-                pitem->setData(Qt::DecorationRole, QPixmap::fromImage(image.scaled(QSize(image_width, image_height), Qt::KeepAspectRatio, Qt::SmoothTransformation)));
-                pitem->setSizeHint(QSize(image_width, image_height) + QSize(4, 4));
+                pitem->setData(Qt::DecorationRole, QPixmap::fromImage(image.scaled(thumb_size, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+                pitem->setSizeHint(thumb_size + QSize(4, 4));
                 pimpl_->item_form_.media_list_widget->addItem(pitem);
                 has_image = true;
             } else {
@@ -616,7 +669,8 @@ void MainWindow::imageDoubleClicked(QListWidgetItem* _item)
 {
     auto* pthumb = static_cast<ThumbnailItem*>(_item);
 
-    pimpl_->history_.push(
+    pimpl_->historyPush(
+        nullptr,
         [this, item_index = pimpl_->current_item_, image_index = pthumb->index_]() {
             const auto&    item = pimpl_->list_model_.item(item_index);
             const QString& path = item.media_vec_[image_index].second;
@@ -627,9 +681,7 @@ void MainWindow::imageDoubleClicked(QListWidgetItem* _item)
                 pimpl_->store_form_.image_label->setPixmap(QPixmap::fromImage(pimpl_->current_image_.scaled(QSize(w, h), Qt::KeepAspectRatio, Qt::SmoothTransformation)));
                 pimpl_->showWidget(pimpl_->store_form_.imageWidget);
             }
-        });
-
-    pimpl_->history_.top()();
+        })();
 }
 
 void MainWindow::resizeEvent(QResizeEvent* event)
@@ -643,41 +695,40 @@ void MainWindow::resizeEvent(QResizeEvent* event)
 
 void MainWindow::goHomeSlot(bool)
 {
-    pimpl_->history_.push(
+    pimpl_->historyPush(
+        pimpl_->store_form_.listWidget,
         [this]() {
             pimpl_->showWidget(pimpl_->store_form_.listWidget);
-        });
-
-    pimpl_->history_.top()();
+        })();
 }
 
 void MainWindow::goAccountSlot(bool)
 {
-    pimpl_->history_.push(
+    pimpl_->historyPush(
+        pimpl_->store_form_.accountWidget,
         [this]() {
             pimpl_->showWidget(pimpl_->store_form_.accountWidget);
-        });
-
-    pimpl_->history_.top()();
+        })();
 }
 void MainWindow::goBackSlot(bool)
 {
     if (!pimpl_->history_.empty()) {
-        pimpl_->history_.pop();
+        if (pimpl_->history_.size() > 1) {
+            pimpl_->history_.pop();
+        }
         if (!pimpl_->history_.empty()) {
-            pimpl_->history_.top()();
+            pimpl_->history_.top().second();
         }
     }
 }
 
 void MainWindow::goAboutSlot(bool)
 {
-    pimpl_->history_.push(
+    pimpl_->historyPush(
+        pimpl_->store_form_.aboutWidget,
         [this]() {
             pimpl_->showWidget(pimpl_->store_form_.aboutWidget);
-        });
-
-    pimpl_->history_.top()();
+        })();
 }
 
 } //namespace store

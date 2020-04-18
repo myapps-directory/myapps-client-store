@@ -13,8 +13,6 @@
 #endif
 #include <windows.h>
 
-#include "DarkStyle.h"
-#include "framelesswindow.h"
 #include "store_engine.hpp"
 #include "store_main_window.hpp"
 
@@ -36,6 +34,7 @@
 #include "ola/common/utility/encode.hpp"
 
 #include "ola/common/ola_front_protocol.hpp"
+#include "ola/client/utility/auth_file.hpp"
 
 #include "boost/filesystem.hpp"
 #include "boost/program_options.hpp"
@@ -140,20 +139,7 @@ struct Authenticator {
     }
     bool loadAuth(string& _rendpoint, string& _ruser, string& _rtoken)
     {
-        const auto path = authDataFilePath();
-        ifstream   ifs(path.generic_string());
-
-        if (ifs) {
-            getline(ifs, _rendpoint);
-            getline(ifs, _ruser);
-            getline(ifs, _rtoken);
-            try {
-                _rtoken = ola::utility::base64_decode(_rtoken);
-            } catch (std::exception& e) {
-                _ruser.clear();
-                _rtoken.clear();
-            }
-        }
+        ola::client::utility::auth_read(authDataFilePath(), _rendpoint, _ruser, _rtoken);
         return !_ruser.empty() && !_rtoken.empty();
     }
 
@@ -163,7 +149,9 @@ struct Authenticator {
     {
         string user, token;
         if (loadAuth(_rendpoint, user, token)) {
-            return make_shared<front::AuthRequest>(token);
+            auto ptr = make_shared<front::AuthRequest>();
+            ptr->pass_ = token;
+            return ptr;
         } else {
             return nullptr;
         }
@@ -272,7 +260,10 @@ int main(int argc, char* argv[])
             3,
             1024 * 1024 * 64);
     }
-    QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
+    //QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 
     QApplication           app(argc, argv);
     AioSchedulerT          aioscheduler;
@@ -283,25 +274,20 @@ int main(int argc, char* argv[])
     frame::aio::Resolver   resolver(cwp);
     Authenticator          authenticator(front_rpc_service, env_config_path_prefix());
     Engine                 engine(front_rpc_service);
-    FramelessWindow        frameless_window;
-    MainWindow&            rmain_window = *(new MainWindow(engine, &frameless_window));
+    MainWindow             main_window(engine);
 
-    authenticator.on_offline_fnc_ = [&frameless_window]() {
-        frameless_window.setWindowTitle(QApplication::tr("MyApps.space Store - Offline"));
+    authenticator.on_offline_fnc_ = [&main_window]() {
+        //main_window.setWindowTitle(QApplication::tr("MyApps.space Store - Offline"));
     };
 
-    authenticator.on_online_fnc_ = [&frameless_window]() {
-        frameless_window.setWindowTitle(QApplication::tr("MyApps.space Store"));
+    authenticator.on_online_fnc_ = [&main_window]() {
+        //main_window.setWindowTitle(QApplication::tr("MyApps.space Store"));
     };
 
     aioscheduler.start(1);
 
-    //framelessWindow.setWindowState(Qt::WindowFullScreen);
-    app.setStyle(new DarkStyle);
-
-    frameless_window.setWindowIcon(app.style()->standardIcon(QStyle::SP_DesktopIcon));
-    frameless_window.setContent(&rmain_window);
-    frameless_window.setWindowTitle(QApplication::tr("MyApps.space Store"));
+    main_window.setWindowIcon(app.style()->standardIcon(QStyle::SP_DesktopIcon));
+    main_window.setWindowTitle(QApplication::tr("MyApps.space Store"));
 
     front_configure_service(authenticator, params, front_rpc_service, aioscheduler, resolver);
     {
@@ -317,7 +303,7 @@ int main(int argc, char* argv[])
 
         front_rpc_service.createConnectionPool(config.front_endpoint_.c_str(), 1);
 
-        config.on_fetch_fnc_ = [&cwp, &rmain_window](
+        config.on_fetch_fnc_ = [&cwp, &main_window](
                                    const size_t   _index,
                                    const size_t   _count,
                                    string&&       _uname,
@@ -328,24 +314,24 @@ int main(int argc, char* argv[])
                                    const bool     _owned,
                                    const bool     _default) {
             cwp.push(
-                [_index, _count, &rmain_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), image = std::move(_uimage), _aquired, _owned, _default]() {
-                    rmain_window.model().prepareAndPushItem(_index, _count, name, company, brief, image, _aquired, _owned, _default);
+                [_index, _count, &main_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), image = std::move(_uimage), _aquired, _owned, _default]() {
+                    main_window.model().prepareAndPushItem(_index, _count, name, company, brief, image, _aquired, _owned, _default);
                 });
         };
-        config.on_fetch_error_fnc_ = [&cwp, &rmain_window](
+        config.on_fetch_error_fnc_ = [&cwp, &main_window](
                                          const size_t _index,
                                          const size_t _count) {
             cwp.push(
-                [_index, _count, &rmain_window]() {
-                    rmain_window.model().prepareAndPushItem(_index, _count);
+                [_index, _count, &main_window]() {
+                    main_window.model().prepareAndPushItem(_index, _count);
                 });
         };
 
         engine.start(std::move(config));
     }
 
-    frameless_window.setWindowIcon(QIcon(":/images/ola_store_bag.ico"));
-    frameless_window.show();
+    main_window.setWindowIcon(QIcon(":/images/ola_store_bag.ico"));
+    main_window.show();
 
     SetWindowText(GetActiveWindow(), L"MyApps.space Store");
 
@@ -479,7 +465,8 @@ void Authenticator::poll()
     while (running_) {
         this_thread::sleep_for(chrono::seconds(1));
         if (loadAuth(endpoint, user, token)) {
-            auto auth_ptr = make_shared<front::AuthRequest>(user, token);
+            auto auth_ptr = make_shared<front::AuthRequest>();
+            auth_ptr->pass_ = token;
             auto lambda   = [this](
                               frame::mprpc::ConnectionContext&      _rctx,
                               std::shared_ptr<front::AuthRequest>&  _rsent_msg_ptr,
