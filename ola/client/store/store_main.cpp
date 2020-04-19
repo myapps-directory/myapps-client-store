@@ -34,7 +34,9 @@
 #include "ola/common/utility/encode.hpp"
 
 #include "ola/common/ola_front_protocol.hpp"
+
 #include "ola/client/utility/auth_file.hpp"
+#include "ola/client/utility/file_monitor.hpp"
 
 #include "boost/filesystem.hpp"
 #include "boost/program_options.hpp"
@@ -96,34 +98,47 @@ struct Authenticator {
     using RecipientQueueT    = std::queue<frame::mprpc::RecipientId>;
     using OnOnlineFunctionT  = std::function<void()>;
     using OnOfflineFunctionT = std::function<void()>;
+    using StopFunctionT      = std::function<void()>;
+    
     frame::mprpc::ServiceT& front_rpc_service_;
+    client::utility::FileMonitor& rfile_monitor_;
     string                  path_prefix_;
     atomic<bool>            running_      = true;
     atomic<size_t>          active_count_ = 0;
-    mutex                   mutex_;
-    string                  user_;
-    string                  token_;
-    thread                  thread_;
-    RecipientQueueT         recipient_q_;
-    OnOnlineFunctionT       on_online_fnc_;
-    OnOfflineFunctionT      on_offline_fnc_;
+    mutex                         mutex_;
+    string                        endpoint_;
+    string                        user_;
+    string                        token_;
+    RecipientQueueT               recipient_q_;
+    OnOnlineFunctionT             on_online_fnc_;
+    OnOfflineFunctionT            on_offline_fnc_;
+    StopFunctionT                 stop_fnc_;
 
+    template <class StopFnc>
     Authenticator(
         frame::mprpc::ServiceT& _front_rpc_service,
-        const string&           _path_prefix)
+        client::utility::FileMonitor& _rfile_monitor,
+        const string&           _path_prefix,
+        StopFnc _stop_fnc
+        )
         : front_rpc_service_(_front_rpc_service)
+        , rfile_monitor_(_rfile_monitor)
         , path_prefix_(_path_prefix)
+        , stop_fnc_(_stop_fnc)
     {
         on_online_fnc_  = []() {};
         on_offline_fnc_ = []() {};
+
+        rfile_monitor_.add(
+            authDataFilePath(),
+            [this](const fs::path& _dir, const fs::path& _name, const chrono::system_clock::time_point& _time_point) mutable {
+                onAuthFileChange();
+            });
     }
 
     ~Authenticator()
     {
         running_ = false;
-        if (thread_.joinable()) {
-            thread_.join();
-        }
     }
 
     fs::path authDataDirectoryPath() const
@@ -139,11 +154,21 @@ struct Authenticator {
     }
     bool loadAuth(string& _rendpoint, string& _ruser, string& _rtoken)
     {
-        ola::client::utility::auth_read(authDataFilePath(), _rendpoint, _ruser, _rtoken);
-        return !_ruser.empty() && !_rtoken.empty();
+        lock_guard<mutex> lock(mutex_);
+        if (!token_.empty()) {
+            _rendpoint = endpoint_;
+            _ruser     = user_;
+            _rtoken    = token_;
+            return true;
+        } else {
+            _rendpoint.clear();
+            _ruser.clear();
+            _rtoken.clear();
+            return false;
+        }
     }
 
-    void poll();
+    void onAuthFileChange();
 
     std::shared_ptr<front::AuthRequest> loadAuth(string& _rendpoint)
     {
@@ -265,16 +290,17 @@ int main(int argc, char* argv[])
 
     //QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 
-    QApplication           app(argc, argv);
-    AioSchedulerT          aioscheduler;
-    frame::Manager         manager;
-    frame::ServiceT        service{manager};
-    frame::mprpc::ServiceT front_rpc_service{manager};
-    CallPool<void()>       cwp{WorkPoolConfiguration(), 1};
-    frame::aio::Resolver   resolver(cwp);
-    Authenticator          authenticator(front_rpc_service, env_config_path_prefix());
-    Engine                 engine(front_rpc_service);
-    MainWindow             main_window(engine);
+    QApplication                 app(argc, argv);
+    AioSchedulerT                aioscheduler;
+    frame::Manager               manager;
+    frame::ServiceT              service{manager};
+    frame::mprpc::ServiceT       front_rpc_service{manager};
+    CallPool<void()>             cwp{WorkPoolConfiguration(), 1};
+    frame::aio::Resolver         resolver(cwp);
+    client::utility::FileMonitor file_monitor_;
+    Authenticator                authenticator(front_rpc_service, file_monitor_, env_config_path_prefix(), []() { QApplication::exit(); });
+    Engine                       engine(front_rpc_service);
+    MainWindow                   main_window(engine);
 
     authenticator.on_offline_fnc_ = [&main_window]() {
         //main_window.setWindowTitle(QApplication::tr("MyApps.space Store - Offline"));
@@ -284,6 +310,7 @@ int main(int argc, char* argv[])
         //main_window.setWindowTitle(QApplication::tr("MyApps.space Store"));
     };
 
+    file_monitor_.start();
     aioscheduler.start(1);
 
     main_window.setWindowIcon(app.style()->standardIcon(QStyle::SP_DesktopIcon));
@@ -298,7 +325,9 @@ int main(int argc, char* argv[])
         if (config.front_endpoint_.empty()) {
             string user;
             string token;
-            solid_check(authenticator.loadAuth(config.front_endpoint_, user, token), "Failed to load authentication endpoint");
+            if (!authenticator.loadAuth(config.front_endpoint_, user, token)) {
+                return 0;
+            }
         }
 
         front_rpc_service.createConnectionPool(config.front_endpoint_.c_str(), 1);
@@ -459,54 +488,43 @@ void Authenticator::onConnectionStart(frame::mprpc::ConnectionContext& _ctx)
 
     _ctx.service().sendRequest(_ctx.recipientId(), req_ptr, lambda);
 }
-void Authenticator::poll()
-{
-    string endpoint, user, token;
-    while (running_) {
-        this_thread::sleep_for(chrono::seconds(1));
-        if (loadAuth(endpoint, user, token)) {
-            auto auth_ptr = make_shared<front::AuthRequest>();
-            auth_ptr->pass_ = token;
-            auto lambda   = [this](
-                              frame::mprpc::ConnectionContext&      _rctx,
-                              std::shared_ptr<front::AuthRequest>&  _rsent_msg_ptr,
-                              std::shared_ptr<front::AuthResponse>& _rrecv_msg_ptr,
-                              ErrorConditionT const&                _rerror) {
-                if (!_rerror && _rrecv_msg_ptr->error_) {
-                    recipient_q_.pop();
-                    auto lambda = [this](
-                                      frame::mprpc::ConnectionContext&      _rctx,
-                                      std::shared_ptr<front::AuthRequest>&  _rsent_msg_ptr,
-                                      std::shared_ptr<front::AuthResponse>& _rrecv_msg_ptr,
-                                      ErrorConditionT const&                _rerror) {
-                        onAuthResponse(_rctx, _rsent_msg_ptr, _rrecv_msg_ptr, _rerror);
-                    };
 
-                    while (!recipient_q_.empty()) {
-                        front_rpc_service_.sendRequest(recipient_q_.front(), _rsent_msg_ptr, lambda);
-                    }
-                }
+void Authenticator::onAuthFileChange(){
+    unique_lock<mutex> lock(mutex_);
+    string             endpoint;
+    string             user;
+    string             token;
+    ola::client::utility::auth_read(authDataFilePath(), endpoint, user, token);
 
-                onAuthResponse(_rctx, _rsent_msg_ptr, _rrecv_msg_ptr, _rerror);
-            };
-            while (!recipient_q_.empty()) {
-                const auto err = front_rpc_service_.sendRequest(recipient_q_.front(), auth_ptr, lambda);
-                if (err) {
-                    recipient_q_.pop();
-                } else {
-                    return;
-                }
-            }
+    if ((endpoint_.empty() || endpoint == endpoint_) && (user_.empty() || user == user_)) {
+        endpoint_ = endpoint;
+        user_     = user;
+
+        if (token.empty()) { //logged out
+            token_.clear();
+            stop_fnc_();
+            return;
+        } else {
+            token_ = token;
         }
+    } else {
+        token_.clear();
+        stop_fnc_();
+        return;
     }
 }
+
+
 void Authenticator::onConnectionInit(frame::mprpc::ConnectionContext& _rctx)
 {
     {
-        lock_guard<mutex> lock(mutex_);
-        if (!recipient_q_.empty()) {
-            recipient_q_.emplace(_rctx.recipientId());
-            return;
+        {
+
+            lock_guard<mutex> lock(mutex_);
+            if (!recipient_q_.empty()) {
+                recipient_q_.emplace(_rctx.recipientId());
+                return;
+            }
         }
         string endpoint;
         auto   auth_ptr = loadAuth(endpoint);
@@ -522,10 +540,6 @@ void Authenticator::onConnectionInit(frame::mprpc::ConnectionContext& _rctx)
             front_rpc_service_.sendRequest(_rctx.recipientId(), auth_ptr, lambda);
         } else {
             recipient_q_.emplace(_rctx.recipientId());
-            if (thread_.joinable()) {
-                thread_.join();
-            }
-            thread_ = std::thread(&Authenticator::poll, this);
         }
     }
 }
@@ -555,13 +569,6 @@ void Authenticator::onAuthResponse(
         lock_guard<mutex> lock(mutex_);
 
         recipient_q_.emplace(_rctx.recipientId());
-
-        if (recipient_q_.size() == 1) {
-            if (thread_.joinable()) {
-                thread_.join();
-            }
-            thread_ = std::thread(&Authenticator::poll, this);
-        }
     }
 }
 
