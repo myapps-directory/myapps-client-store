@@ -6,8 +6,8 @@
 #include "ui_store_form.h"
 #include <QAction>
 #include <QApplication>
-#include <QDesktopWidget>
 #include <QComboBox>
+#include <QDesktopWidget>
 #include <QImageReader>
 #include <QKeyEvent>
 #include <QMenu>
@@ -29,10 +29,10 @@ namespace store {
 
 namespace {
 const solid::LoggerT logger("ola::client::store::widget");
-constexpr int        g_image_width       = 384;
-constexpr int        g_image_height      = 216;
-constexpr int        g_item_width        = 384;
-constexpr int        g_item_height       = 344;
+constexpr int        g_image_width     = 384;
+constexpr int        g_image_height    = 216;
+constexpr int        g_item_width      = 384;
+constexpr int        g_item_height     = 344;
 constexpr int        item_column_count = 3;
 constexpr int        item_row_count    = 2;
 
@@ -100,7 +100,7 @@ struct MainWindow::Data {
     }
 
     template <class F>
-    HistoryFunctionT& historyPush(const QWidget *_pw, F _f)
+    HistoryFunctionT& historyPush(const QWidget* _pw, F _f)
     {
         if (history_.empty() || _pw == nullptr || history_.top().first != _pw) {
             history_.emplace(_pw, _f);
@@ -222,7 +222,7 @@ void ListItem::paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionVi
     }
 }
 
-ListModel::ListModel(Engine& _rengine, const Sizes &_rsizes, QObject* parent)
+ListModel::ListModel(Engine& _rengine, const Sizes& _rsizes, QObject* parent)
     : QAbstractListModel(parent)
     , rsizes_(_rsizes)
     , rengine_(_rengine)
@@ -452,7 +452,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
 
     QWidget* empty = new QWidget();
     empty->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    
+
     pimpl_->tool_bar_.addSeparator();
     pimpl_->tool_bar_.addWidget(psearchcombo);
     pimpl_->tool_bar_.addWidget(empty);
@@ -602,8 +602,6 @@ void MainWindow::showMediaThumbnails(int _index)
 {
     auto& item = pimpl_->list_model_.item(_index);
 
-
-
     if (item.media_vec_.size()) {
         const QSize thumb_size{pimpl_->sizes_.image_width_, pimpl_->sizes_.image_height_};
 
@@ -689,7 +687,7 @@ void MainWindow::resizeEvent(QResizeEvent* event)
     if (pimpl_->store_form_.imageWidget->isVisible()) {
         const int w = pimpl_->store_form_.centralwidget->width();
         const int h = pimpl_->store_form_.centralwidget->height();
-        pimpl_->store_form_.image_label->setPixmap(QPixmap::fromImage(pimpl_->current_image_.scaled(QSize(w, h), Qt::KeepAspectRatio, Qt::SmoothTransformation)));             
+        pimpl_->store_form_.image_label->setPixmap(QPixmap::fromImage(pimpl_->current_image_.scaled(QSize(w, h), Qt::KeepAspectRatio, Qt::SmoothTransformation)));
     }
 }
 

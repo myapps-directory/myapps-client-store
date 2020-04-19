@@ -99,12 +99,12 @@ struct Authenticator {
     using OnOnlineFunctionT  = std::function<void()>;
     using OnOfflineFunctionT = std::function<void()>;
     using StopFunctionT      = std::function<void()>;
-    
-    frame::mprpc::ServiceT& front_rpc_service_;
+
+    frame::mprpc::ServiceT&       front_rpc_service_;
     client::utility::FileMonitor& rfile_monitor_;
-    string                  path_prefix_;
-    atomic<bool>            running_      = true;
-    atomic<size_t>          active_count_ = 0;
+    string                        path_prefix_;
+    atomic<bool>                  running_      = true;
+    atomic<size_t>                active_count_ = 0;
     mutex                         mutex_;
     string                        endpoint_;
     string                        user_;
@@ -116,11 +116,10 @@ struct Authenticator {
 
     template <class StopFnc>
     Authenticator(
-        frame::mprpc::ServiceT& _front_rpc_service,
+        frame::mprpc::ServiceT&       _front_rpc_service,
         client::utility::FileMonitor& _rfile_monitor,
-        const string&           _path_prefix,
-        StopFnc _stop_fnc
-        )
+        const string&                 _path_prefix,
+        StopFnc                       _stop_fnc)
         : front_rpc_service_(_front_rpc_service)
         , rfile_monitor_(_rfile_monitor)
         , path_prefix_(_path_prefix)
@@ -174,7 +173,7 @@ struct Authenticator {
     {
         string user, token;
         if (loadAuth(_rendpoint, user, token)) {
-            auto ptr = make_shared<front::AuthRequest>();
+            auto ptr   = make_shared<front::AuthRequest>();
             ptr->pass_ = token;
             return ptr;
         } else {
@@ -489,7 +488,8 @@ void Authenticator::onConnectionStart(frame::mprpc::ConnectionContext& _ctx)
     _ctx.service().sendRequest(_ctx.recipientId(), req_ptr, lambda);
 }
 
-void Authenticator::onAuthFileChange(){
+void Authenticator::onAuthFileChange()
+{
     unique_lock<mutex> lock(mutex_);
     string             endpoint;
     string             user;
@@ -513,7 +513,6 @@ void Authenticator::onAuthFileChange(){
         return;
     }
 }
-
 
 void Authenticator::onConnectionInit(frame::mprpc::ConnectionContext& _rctx)
 {

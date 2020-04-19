@@ -3,9 +3,9 @@
 #include "solid/system/pimpl.hpp"
 #include "store_engine.hpp"
 #include <QAbstractListModel>
+#include <QListWidgetItem>
 #include <QMainWindow>
 #include <QStyledItemDelegate>
-#include <QListWidgetItem>
 #include <deque>
 #include <functional>
 #include <mutex>
@@ -18,18 +18,18 @@ namespace store {
 struct Sizes {
     double scale_x_;
     double scale_y_;
-    int image_width_;
-    int image_height_;
-    int item_width_;
-    int item_height_;
+    int    image_width_;
+    int    image_height_;
+    int    item_width_;
+    int    item_height_;
 
     Sizes(
         double _scale_x,
         double _scale_y,
-        int _image_width,
-        int _image_height,
-        int _item_width,
-        int _item_height)
+        int    _image_width,
+        int    _image_height,
+        int    _item_width,
+        int    _item_height)
         : scale_x_(_scale_x)
         , scale_y_(_scale_y)
         , image_width_(_image_width * scale_x_)
@@ -40,7 +40,6 @@ struct Sizes {
     }
 };
 
-
 struct ListItem {
     size_t  engine_index_ = -1;
     QString name_;
@@ -48,12 +47,12 @@ struct ListItem {
     QString brief_;
     QImage  image_;
     bool    acquired_ = false;
-    bool    owned_   = false;
-    bool    default_ = false;
+    bool    owned_    = false;
+    bool    default_  = false;
 
     QVector<QPair<QString, QString>> media_vec_;
 
-    void paint(QPainter* painter, const Sizes &_rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const;
+    void paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const;
 };
 
 Q_DECLARE_METATYPE(const ListItem*)
@@ -74,7 +73,7 @@ class ListModel : public QAbstractListModel {
     const Sizes&         rsizes_;
 
 public:
-    ListModel(Engine& _rengine, const Sizes &_rsizes, QObject* parent = nullptr);
+    ListModel(Engine& _rengine, const Sizes& _rsizes, QObject* parent = nullptr);
 
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
 
@@ -96,8 +95,8 @@ public:
         const size_t _index,
         const size_t _count);
 
-
-    const ListItem& item(const size_t _index) const {
+    const ListItem& item(const size_t _index) const
+    {
         return item_dq_[_index];
     }
 
@@ -106,7 +105,8 @@ public:
         return item_dq_[_index];
     }
 
-    Engine& engine() {
+    Engine& engine()
+    {
         return rengine_;
     }
 
@@ -121,7 +121,7 @@ private slots:
 class ItemDelegate : public QStyledItemDelegate {
     Q_OBJECT
 public:
-    ItemDelegate(const Sizes &_rszs);
+    ItemDelegate(const Sizes& _rszs);
     void  paint(QPainter* painter, const QStyleOptionViewItem& option,
          const QModelIndex& index) const override;
     QSize sizeHint(const QStyleOptionViewItem& option,
@@ -129,14 +129,15 @@ public:
 
 private:
     const Sizes& rsizes_;
-    QPixmap acquired_pix_;
-    QPixmap owned_pix_;
-    QPixmap acquired_owned_pix_;
+    QPixmap      acquired_pix_;
+    QPixmap      owned_pix_;
+    QPixmap      acquired_owned_pix_;
 };
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
     using VectorPairStringT = QVector<QPair<QString, QString>>;
+
 public:
     MainWindow(Engine& _rengine, QWidget* parent = 0);
     ~MainWindow();
@@ -170,6 +171,7 @@ private:
     bool eventFilter(QObject* obj, QEvent* event) override;
     void showMediaThumbnails(int _index);
     void showItem(int _index);
+
 private:
     struct Data;
     solid::PimplT<Data> pimpl_;

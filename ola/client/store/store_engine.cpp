@@ -136,7 +136,7 @@ void Engine::stop()
 {
 }
 
-void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest> &_rreq_msg)
+void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
 {
     auto req_ptr = std::move(_rreq_msg);
 
