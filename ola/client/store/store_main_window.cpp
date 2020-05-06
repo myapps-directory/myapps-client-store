@@ -655,12 +655,14 @@ void MainWindow::onAquireButtonToggled(bool _checked)
 {
     const auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
 
-    pimpl_->engine().acquireItem(
-        item.engine_index_,
-        _checked,
-        [this, index = pimpl_->current_item_](bool _acquired) {
+    if (!item.default_) {
+        pimpl_->engine().acquireItem(
+            item.engine_index_,
+            _checked,
+            [this, index = pimpl_->current_item_](bool _acquired) {
             emit itemAcquire(index, _acquired);
         });
+    }
 }
 
 void MainWindow::imageDoubleClicked(QListWidgetItem* _item)
