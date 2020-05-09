@@ -557,14 +557,18 @@ void Authenticator::onAuthResponse(
     std::shared_ptr<front::AuthResponse>& _rrecv_msg_ptr,
     ErrorConditionT const&                _rerror)
 {
-    if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-        solid_log(logger, Info, "AuthResponse: " << _rrecv_msg_ptr->error_);
+    if (!_rrecv_msg_ptr) {
+        return;//do nothing - connection will close
+    }
+
+    if (_rrecv_msg_ptr->error_ == 0) {
+        solid_log(logger, Info, "AuthResponse OK");
         _rctx.service().connectionNotifyEnterActiveState(_rctx.recipientId());
         if (active_count_.fetch_add(1) == 0) {
             on_online_fnc_();
         }
     } else {
-        solid_log(logger, Info, "No AuthResponse");
+        solid_log(logger, Info, "AuthResponse Error: " << _rrecv_msg_ptr->error_);
         lock_guard<mutex> lock(mutex_);
 
         recipient_q_.emplace(_rctx.recipientId());

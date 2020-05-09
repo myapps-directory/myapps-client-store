@@ -43,8 +43,6 @@ if(${Qt5Widgets_FOUND})
         store_main_window.hpp
         store_engine.cpp
         store_engine.hpp
-        windowdragger.h
-        windowdragger.cpp
         ${FORMS_HEADERS}
     )
 
