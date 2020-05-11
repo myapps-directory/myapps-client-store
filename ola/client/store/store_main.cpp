@@ -153,7 +153,6 @@ struct Authenticator {
     }
     bool loadAuth(string& _rendpoint, string& _ruser, string& _rtoken)
     {
-        lock_guard<mutex> lock(mutex_);
         if (!token_.empty()) {
             _rendpoint = endpoint_;
             _ruser     = user_;
@@ -322,6 +321,7 @@ int main(int argc, char* argv[])
         config.os_             = "Windows10x86_64";
         config.front_endpoint_ = params.front_endpoint;
         if (config.front_endpoint_.empty()) {
+            lock_guard<mutex> lock(authenticator.mutex_);
             string user;
             string token;
             if (!authenticator.loadAuth(config.front_endpoint_, user, token)) {
@@ -494,7 +494,10 @@ void Authenticator::onAuthFileChange()
     string             endpoint;
     string             user;
     string             token;
+    
     ola::client::utility::auth_read(authDataFilePath(), endpoint, user, token);
+
+    solid_log(logger, Info, "new auth data = " << endpoint << " " << user << " old auth data = " << endpoint_ << " " << user_);
 
     if ((endpoint_.empty() || endpoint == endpoint_) && (user_.empty() || user == user_)) {
         endpoint_ = endpoint;
@@ -506,6 +509,25 @@ void Authenticator::onAuthFileChange()
             return;
         } else {
             token_ = token;
+            while (recipient_q_.size()) {
+                string endpoint;
+                auto   auth_ptr = loadAuth(endpoint);
+
+                if (auth_ptr) {
+                    auto lambda = [this](
+                        frame::mprpc::ConnectionContext& _rctx,
+                        std::shared_ptr<front::AuthRequest>& _rsent_msg_ptr,
+                        std::shared_ptr<front::AuthResponse>& _rrecv_msg_ptr,
+                        ErrorConditionT const& _rerror) {
+                            onAuthResponse(_rctx, _rsent_msg_ptr, _rrecv_msg_ptr, _rerror);
+                    };
+                    front_rpc_service_.sendRequest(recipient_q_.front(), auth_ptr, lambda);
+                    recipient_q_.pop();
+                }
+                else {
+                    break;
+                }
+            }
         }
     } else {
         token_.clear();
@@ -525,6 +547,7 @@ void Authenticator::onConnectionInit(frame::mprpc::ConnectionContext& _rctx)
                 return;
             }
         }
+        lock_guard<mutex> lock(mutex_);
         string endpoint;
         auto   auth_ptr = loadAuth(endpoint);
 
