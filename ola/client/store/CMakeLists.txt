@@ -11,6 +11,7 @@ message("Finding Qt5 from ${Qt5_DIR}")
 find_package(Qt5 COMPONENTS Core Widgets Gui)
 
 if(Qt5_FOUND AND WIN32 AND NOT TARGET Qt5::windeployqt)
+    
     message("Finding Qt5 windeployqt")
     get_target_property(_qt5_qmake_location Qt5::qmake IMPORTED_LOCATION)
 
@@ -33,6 +34,7 @@ if(Qt5_FOUND AND WIN32 AND NOT TARGET Qt5::windeployqt)
 endif()
 
 if(${Qt5Widgets_FOUND})
+    
     QT5_WRAP_UI(FORMS_HEADERS store_form.ui list_form.ui item_form.ui account_form.ui about_form.ui)
     QT5_ADD_RESOURCES(FORMS_HEADERS store_main.qrc)
     
@@ -106,6 +108,7 @@ if(${Qt5Widgets_FOUND})
     endif()
 
     add_dependencies(ola_client_store build-snappy build-cereal)
+    
     set_target_properties(
         ola_client_store PROPERTIES
         VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:ola_client_store>)
@@ -131,8 +134,8 @@ if(${Qt5Widgets_FOUND})
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Gui> $<TARGET_FILE_DIR:ola_client_store>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Widgets> $<TARGET_FILE_DIR:ola_client_store>
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/certs  $<TARGET_FILE_DIR:ola_client_store>/certs
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/ola_store.build $<TARGET_FILE_DIR:ola_client_store>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/ola_store.media $<TARGET_FILE_DIR:ola_client_store>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/ola_store.build.yml $<TARGET_FILE_DIR:ola_client_store>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/ola_store.media.yml $<TARGET_FILE_DIR:ola_client_store>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_SSL_DLL} $<TARGET_FILE_DIR:ola_client_store>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_CRYPTO_DLL} $<TARGET_FILE_DIR:ola_client_store>
         COMMAND ${CMAKE_COMMAND} -DINFILE="${CMAKE_CURRENT_SOURCE_DIR}/ola_upload.in"  -DOUTFILE=$<TARGET_FILE_DIR:ola_client_store>/ola_upload -DPROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}" -P "${CMAKE_CURRENT_SOURCE_DIR}/GenericConfigureFile.cmake"

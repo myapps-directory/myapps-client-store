@@ -16,7 +16,7 @@ createBuild()
 	cp "$PROJECT_ROOT/ola/client/store/images/ola_store_bag.ico" tmp/build
 	cp "$PROJECT_ROOT/ola/client/store/images/ola_store_bag.png" tmp
     
-    echo -ne "create build $APPID $BUILDID ola_store.build tmp/build tmp/ola_store_bag.png\nq\n" | ola_client_cli
+    echo -ne "create build $APPID $BUILDID ola_store.build.yml tmp/build tmp/ola_store_bag.png\nq\n" | ola_client_cli
 }
 
 createMedia()
@@ -34,7 +34,7 @@ createMedia()
         magick convert -resize 384x216 "$filename" "tmp/media/$(basename "$filename" .png)t.jpg"
     done
 
-    echo -ne "create media $APPID $BUILDID ola_store.media tmp/media\nq\n" | ola_client_cli
+    echo -ne "create media $APPID $BUILDID ola_store.media.yml tmp/media\nq\n" | ola_client_cli
 }
 
 

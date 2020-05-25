@@ -1,0 +1,41 @@
+name: windows
+tag: r1.3
+dictionary:
+  - language: en-US
+    name: MyApps.space Store
+    description: |
+        Online Store for MyApps.space applications.
+    brief: Online Store for MyApps.space.
+    company: "MyApps.space"
+  - language: ro-RO
+    name: Magazin MyApps.space
+    description: |
+        Magazin on-line de aplicații MyApps.space.
+    brief: |
+        Magazin on-line de aplicații MyApps.space.
+    company: "MyApps.space"
+properties:
+  name: ${name}
+  description: ${description}
+configurations:
+  - name: windows64bit
+    directory: ${name}
+    flags:
+      - HiddenDirectory
+    oses:
+      - Windows10x86_64
+    exes:
+      - ola_client_launcher.exe
+      - ola_client_store.exe
+    mount-points: []
+    properties:
+      name: ${name}
+      description: ${description}
+      brief: ${brief}
+      company: ${company}
+    shortcuts:
+      - name: ${name}
+        command: ola_client_launcher.exe
+        icon: ola_store_bag.ico
+        arguments: ""
+        run_folder: ""

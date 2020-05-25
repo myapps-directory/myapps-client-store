@@ -84,15 +84,15 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
     string                  ola_bin_path;
 
     {
-        assert(matches("c:\\users\\test\\something\\OLA\\bin", "OLA\\bin"));
-        assert(!matches("c:\\users\\OLA\\bin\\something\\OLa\\bin", "OLA\\bin"));
+        assert(matches("c:\\users\\test\\something\\MyApps.space\\bin", "MyApps.space\\bin"));
+        assert(!matches("c:\\users\\MyApps.space\\bin\\something\\MyApps.Space\\bin", "MyApps.space\\bin"));
     }
 
     {
         string new_paths;
         //we need to put the new qt_path before the OLA/bin path
         for (const auto& p : path_vec) {
-            if (matches(p, "OLA\\bin")) {
+            if (matches(p, "MyApps.space\\bin")) {
                 if (!new_paths.empty()) {
                     new_paths += ';';
                 }
