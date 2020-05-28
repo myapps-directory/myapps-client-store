@@ -467,6 +467,13 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
 
     resize(QSize((pimpl_->sizes_.item_width_ * item_column_count + 60), (pimpl_->sizes_.item_height_ * item_row_count + 133)));
 
+    pimpl_->item_form_.comboBox->setPlaceholderText("Acquire");
+    pimpl_->item_form_.comboBox->addItem("Latest Release");
+    pimpl_->item_form_.comboBox->addItem("Latest Test");
+    pimpl_->item_form_.comboBox->addItem("develop-afsdf243dfa");
+
+    pimpl_->item_form_.comboBox->setMaximumHeight(pimpl_->item_form_.acquire_button->height() - 2);
+
     pimpl_->history_.emplace(
         pimpl_->store_form_.listWidget,
         [this]() {
