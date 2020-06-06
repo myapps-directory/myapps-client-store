@@ -27,8 +27,8 @@ class Engine{
     struct Implementation;
     solid::PimplT<Implementation> pimpl_;
 public:
-    using OnFetchItemDataT = std::function<void(const std::string&, const std::string&)>;
-    using OnFetchItemMediaT = std::function<void(const std::vector<std::pair<std::string, std::string>>&)>;
+    using OnFetchItemDataT = std::function<void(std::shared_ptr<ola::front::FetchBuildConfigurationResponse>&)>;
+    using OnFetchItemBuildsT = std::function<void(std::shared_ptr<ola::front::FetchAppResponse>&)>;
     using OnAcquireItemT = std::function<void(bool)>;
 
     Engine(solid::frame::mprpc::ServiceT& _rrpc_service);
@@ -44,8 +44,8 @@ public:
 
     void onModelFetchedItems(size_t _model_index, size_t _engine_current_index, size_t _count);
 
-    void fetchItemData(const size_t _index, OnFetchItemDataT _fetch_fnc);
-    void fetchItemMedia(const size_t _index, OnFetchItemMediaT _fetch_fnc);
+    void fetchItemData(const size_t _index, const std::string &_build_name, OnFetchItemDataT _fetch_fnc);
+    void fetchItemBuilds(const size_t _index, OnFetchItemBuildsT _fetch_fnc);
 
     void acquireItem(const size_t _index, const bool _acquire, OnAcquireItemT _fetch_fnc);
 };

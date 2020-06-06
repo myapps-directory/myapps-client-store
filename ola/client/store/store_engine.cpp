@@ -88,7 +88,7 @@ public:
         fetch_count_ = config_.start_fetch_count_;
     }
 
-    string localMediaPath(const string& _path, const string& _storage_id, const string& _unique) const
+    string localMediaPath(const string& _path, const string& _storage_id) const
     {
         //TODO:
         return "c:\\MyApps.space\\.m\\" + utility::hex_encode(_storage_id) + '\\' + _path;
@@ -300,19 +300,23 @@ void Engine::onModelFetchedItems(size_t _model_index, size_t _engine_current_ind
     }
 }
 
-void Engine::fetchItemData(const size_t _index, OnFetchItemDataT _fetch_fnc)
+void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFetchItemDataT _fetch_fnc)
 {
-    auto lambda = [_fetch_fnc](
-                      frame::mprpc::ConnectionContext&                              _rctx,
-                      std::shared_ptr<ola::front::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<ola::front::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
-                      ErrorConditionT const&                                        _rerror) {
+    auto lambda = [this, _fetch_fnc](
+        frame::mprpc::ConnectionContext& _rctx,
+        std::shared_ptr<ola::front::FetchBuildConfigurationRequest>& _rsent_msg_ptr,
+        std::shared_ptr<ola::front::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
+        ErrorConditionT const& _rerror) {
+        
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-            _fetch_fnc(_rrecv_msg_ptr->configuration_.property_vec_[0].second, _rrecv_msg_ptr->configuration_.property_vec_[1].second);
-        } else /*if (_rrecv_msg_ptr->error_)*/ {
-            _fetch_fnc("", "");
+            for (auto& e : _rrecv_msg_ptr->configuration_.media_.entry_vec_) {
+                e.thumbnail_path_ = pimpl_->localMediaPath(e.thumbnail_path_, _rrecv_msg_ptr->media_storage_id_);
+                e.path_ = pimpl_->localMediaPath(e.path_, _rrecv_msg_ptr->media_storage_id_);
+            }
         }
+        _fetch_fnc(_rrecv_msg_ptr);
     };
+
     auto req_ptr = make_shared<ola::front::FetchBuildConfigurationRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
@@ -321,14 +325,42 @@ void Engine::fetchItemData(const size_t _index, OnFetchItemDataT _fetch_fnc)
 
     req_ptr->lang_  = pimpl_->config_.language_;
     req_ptr->os_id_ = pimpl_->config_.os_;
+    req_ptr->build_id_ = _build_name;
 
     ola::utility::Build::set_option(req_ptr->fetch_options_, ola::utility::Build::FetchOptionsE::Image);
+    ola::utility::Build::set_option(req_ptr->fetch_options_, ola::utility::Build::FetchOptionsE::Media);
+    req_ptr->property_vec_.emplace_back("name");
+    req_ptr->property_vec_.emplace_back("company");
+    req_ptr->property_vec_.emplace_back("brief");
     req_ptr->property_vec_.emplace_back("description");
     req_ptr->property_vec_.emplace_back("release");
 
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
 
+void Engine::fetchItemBuilds(const size_t _index, OnFetchItemBuildsT _fetch_fnc)
+{
+    auto lambda = [this, _fetch_fnc](
+        frame::mprpc::ConnectionContext& _rctx,
+        std::shared_ptr<ola::front::FetchAppRequest>& _rsent_msg_ptr,
+        std::shared_ptr<ola::front::FetchAppResponse>& _rrecv_msg_ptr,
+        ErrorConditionT const& _rerror) {
+
+            _fetch_fnc(_rrecv_msg_ptr);
+    };
+
+    auto req_ptr = make_shared<ola::front::FetchAppRequest>();
+    {
+        lock_guard<mutex> lock(pimpl_->mutex_);
+        req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
+    }
+
+    req_ptr->os_id_ = pimpl_->config_.os_;
+
+    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+}
+
+#if 0
 void Engine::fetchItemMedia(const size_t _index, OnFetchItemMediaT _fetch_fnc)
 {
     auto lambda = [this, _fetch_fnc](
@@ -357,6 +389,7 @@ void Engine::fetchItemMedia(const size_t _index, OnFetchItemMediaT _fetch_fnc)
 
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
+#endif
 
 void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItemT _fetch_fnc)
 {

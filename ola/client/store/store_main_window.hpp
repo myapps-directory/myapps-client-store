@@ -49,13 +49,15 @@ struct ListItem {
     bool    acquired_ = false;
     bool    owned_    = false;
     bool    default_  = false;
-
-    QVector<QPair<QString, QString>> media_vec_;
+    std::shared_ptr<ola::front::FetchBuildConfigurationResponse> data_ptr_;
 
     void paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const;
 };
 
 Q_DECLARE_METATYPE(const ListItem*)
+Q_DECLARE_METATYPE(std::shared_ptr<ola::front::FetchBuildConfigurationResponse>)
+Q_DECLARE_METATYPE(std::shared_ptr<ola::front::FetchAppResponse>)
+
 
 class ListModel : public QAbstractListModel {
     Q_OBJECT
@@ -148,16 +150,16 @@ private:
 signals:
     void closeSignal();
     void offlineSignal(bool);
-    void itemData(int _index, QString _description, QString _release);
-    void itemMedia(int _index, VectorPairStringT _media_vec);
+    void itemData(int _index, std::shared_ptr<ola::front::FetchBuildConfigurationResponse> _response_ptr);
+    void itemBuilds(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr);
     void itemAcquire(int _index, bool _acquired);
 
 private slots:
     void onOffline(bool);
     void onItemDoubleClicked(const QModelIndex&);
     void onAquireButtonToggled(bool _checked);
-    void itemDataSlot(int _index, const QString& _description, const QString& _release);
-    void itemMediaSlot(int _index, const VectorPairStringT& _rmedia_vec);
+    void itemDataSlot(int _index, std::shared_ptr<ola::front::FetchBuildConfigurationResponse> _response_ptr);
+    void itemBuildsSlot(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr);
     void itemAcquireSlot(int _index, bool _acquired);
     void imageDoubleClicked(QListWidgetItem*);
 
@@ -165,6 +167,8 @@ private slots:
     void goAccountSlot(bool);
     void goBackSlot(bool);
     void goAboutSlot(bool);
+
+    void buildChangedSlot(int _index);
 
 private:
     void closeEvent(QCloseEvent*) override;
