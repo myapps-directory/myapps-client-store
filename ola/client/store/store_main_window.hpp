@@ -46,6 +46,7 @@ struct ListItem {
     QString company_;
     QString brief_;
     QImage  image_;
+    QString build_id_;
     bool    acquired_ = false;
     bool    owned_    = false;
     bool    default_  = false;
@@ -89,6 +90,7 @@ public:
         const std::string&       _name,
         const std::string&       _company,
         const std::string&       _brief,
+        const std::string&       _build_id,
         const std::vector<char>& _image,
         const bool               _aquired = true,
         const bool               _owned   = true,
@@ -158,6 +160,7 @@ private slots:
     void onOffline(bool);
     void onItemDoubleClicked(const QModelIndex&);
     void onAquireButtonToggled(bool _checked);
+    void onConfigureButtonClicked(bool _checked);
     void itemDataSlot(int _index, std::shared_ptr<ola::front::FetchBuildConfigurationResponse> _response_ptr);
     void itemBuildsSlot(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr);
     void itemAcquireSlot(int _index, bool _acquired);

@@ -22,5 +22,6 @@
         <file>images/review_reject.png</file>
         <file>images/review_accept.png</file>
         <file>images/configure.png</file>
+        <file>images/none.png</file>
     </qresource>
 </RCC>

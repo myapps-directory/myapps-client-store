@@ -2,6 +2,7 @@
 #include "ola/common/utility/encode.hpp"
 #include "solid/system/log.hpp"
 #include <unordered_map>
+#include "ola/client/utility/app_list_file.hpp"
 
 #include <deque>
 
@@ -68,6 +69,7 @@ struct Equal {
 using ApplicationDequeT = std::deque<ApplicationStub>;
 using AtomicSizeT       = std::atomic<size_t>;
 using ApplicationMapT   = std::unordered_map<const std::reference_wrapper<const string>, size_t, Hash, Equal>;
+using AppListFileT = ola::client::utility::AppListFile;
 
 struct Engine::Implementation {
     Configuration           config_;
@@ -76,6 +78,7 @@ struct Engine::Implementation {
     ApplicationMapT         app_map_;
     size_t                  fetch_count_ = 0;
     mutex                   mutex_;
+    AppListFileT            app_list_file_;
 
 public:
     Implementation(frame::mprpc::ServiceT& _rrpc_service)
@@ -91,7 +94,7 @@ public:
     string localMediaPath(const string& _path, const string& _storage_id) const
     {
         //TODO:
-        return "c:\\MyApps.space\\.m\\" + utility::hex_encode(_storage_id) + '\\' + _path;
+        return "c:\\MyApps.space\\.m\\" + ola::utility::hex_encode(_storage_id) + '\\' + _path;
     }
 };
 
@@ -107,6 +110,9 @@ Engine::~Engine()
 void Engine::start(Configuration&& _rcfg)
 {
     pimpl_->config(std::move(_rcfg));
+
+
+    pimpl_->app_list_file_.load(pimpl_->config_.app_list_file_path_);
 
     auto req_ptr = make_shared<front::ListAppsRequest>();
 
@@ -130,6 +136,8 @@ void Engine::start(Configuration&& _rcfg)
         }
     };
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+
+
 }
 
 void Engine::stop()
@@ -235,16 +243,27 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
         }
     }
     for (size_t i = _index; i < last_index; ++i) {
-        auto lambda = [this, i](
+
+        auto req_ptr = make_shared<ola::front::FetchBuildConfigurationRequest>();
+        string build_request;
+        {
+            lock_guard<mutex> lock(pimpl_->mutex_);
+            req_ptr->app_id_ = pimpl_->app_dq_[i].app_id_;
+            build_request = pimpl_->app_list_file_.find(pimpl_->app_dq_[i].app_uid_).name_;
+        }
+
+
+        auto lambda = [this, i, build_request](
                           frame::mprpc::ConnectionContext&                              _rctx,
                           std::shared_ptr<ola::front::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
                           std::shared_ptr<ola::front::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
-                          ErrorConditionT const&                                        _rerror) {
+                          ErrorConditionT const&                                        _rerror) mutable {
             if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
                 pimpl_->config_.on_fetch_fnc_(i, pimpl_->fetch_count_,
                     std::move(_rrecv_msg_ptr->configuration_.property_vec_[0].second), //name
                     std::move(_rrecv_msg_ptr->configuration_.property_vec_[1].second), //company
                     std::move(_rrecv_msg_ptr->configuration_.property_vec_[2].second), //brief
+                    std::move(build_request),
                     std::move(_rrecv_msg_ptr->image_blob_),
                     pimpl_->app_dq_[i].hasFlag(ApplicationStub::FlagsE::Aquired),
                     pimpl_->app_dq_[i].hasFlag(ApplicationStub::FlagsE::Owned),
@@ -257,14 +276,14 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
                 pimpl_->config_.on_fetch_error_fnc_(i, pimpl_->fetch_count_);
             }
         };
-        auto req_ptr = make_shared<ola::front::FetchBuildConfigurationRequest>();
-        {
-            lock_guard<mutex> lock(pimpl_->mutex_);
-            req_ptr->app_id_ = pimpl_->app_dq_[i].app_id_;
-        }
+        
 
         req_ptr->lang_  = pimpl_->config_.language_;
         req_ptr->os_id_ = pimpl_->config_.os_;
+        req_ptr->build_id_ = build_request;
+        if (req_ptr->build_id_ == ola::utility::build_invalid) {
+            req_ptr->build_id_.clear();
+        }
 
         ola::utility::Build::set_option(req_ptr->fetch_options_, ola::utility::Build::FetchOptionsE::Image);
         req_ptr->property_vec_.emplace_back("name");
@@ -360,37 +379,6 @@ void Engine::fetchItemBuilds(const size_t _index, OnFetchItemBuildsT _fetch_fnc)
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
 
-#if 0
-void Engine::fetchItemMedia(const size_t _index, OnFetchItemMediaT _fetch_fnc)
-{
-    auto lambda = [this, _fetch_fnc](
-                      frame::mprpc::ConnectionContext&                              _rctx,
-                      std::shared_ptr<ola::front::FetchMediaConfigurationRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<ola::front::FetchMediaConfigurationResponse>& _rrecv_msg_ptr,
-                      ErrorConditionT const&                                        _rerror) {
-        vector<pair<string, string>> media_vec;
-
-        if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-
-            for (const auto& m : _rrecv_msg_ptr->configuration_.entry_vec_) {
-                media_vec.emplace_back(pimpl_->localMediaPath(m.thumbnail_path_, _rrecv_msg_ptr->storage_id_, _rrecv_msg_ptr->unique_), pimpl_->localMediaPath(m.path_, _rrecv_msg_ptr->storage_id_, _rrecv_msg_ptr->unique_));
-            }
-        }
-        _fetch_fnc(media_vec);
-    };
-    auto req_ptr = make_shared<ola::front::FetchMediaConfigurationRequest>();
-    {
-        lock_guard<mutex> lock(pimpl_->mutex_);
-        req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
-    }
-
-    req_ptr->lang_  = pimpl_->config_.language_;
-    req_ptr->os_id_ = pimpl_->config_.os_;
-
-    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
-}
-#endif
-
 void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItemT _fetch_fnc)
 {
     auto lambda = [this, _fetch_fnc](
@@ -413,6 +401,20 @@ void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItem
     req_ptr->acquire_ = _acquire;
 
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+}
+
+void Engine::acquireBuild(const size_t _index, const std::string& _build_id) {
+    lock_guard<mutex> lock(pimpl_->mutex_);
+    
+    if (_build_id.empty()) {
+        pimpl_->app_list_file_.erase(pimpl_->app_dq_[_index].app_uid_);
+    }
+    else {
+        ola::utility::BuildEntry entry;
+        entry.name_ = _build_id;
+        pimpl_->app_list_file_.insert(pimpl_->app_dq_[_index].app_uid_, entry);
+    }
+    pimpl_->app_list_file_.store(pimpl_->config_.app_list_file_path_);
 }
 
 } //namespace store

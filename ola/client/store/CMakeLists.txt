@@ -35,7 +35,7 @@ endif()
 
 if(${Qt5Widgets_FOUND})
     
-    QT5_WRAP_UI(FORMS_HEADERS store_form.ui list_form.ui item_form.ui account_form.ui about_form.ui)
+    QT5_WRAP_UI(FORMS_HEADERS store_form.ui list_form.ui item_form.ui account_form.ui about_form.ui configure_form.ui)
     QT5_ADD_RESOURCES(FORMS_HEADERS store_main.qrc)
     
     set(SRCS
