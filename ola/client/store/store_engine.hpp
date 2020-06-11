@@ -47,7 +47,7 @@ public:
     void onModelFetchedItems(size_t _model_index, size_t _engine_current_index, size_t _count);
 
     void fetchItemData(const size_t _index, const std::string &_build_name, OnFetchItemDataT _fetch_fnc);
-    void fetchItemBuilds(const size_t _index, OnFetchItemBuildsT _fetch_fnc);
+    void fetchItemEntries(const size_t _index, OnFetchItemBuildsT _fetch_fnc);
 
     void acquireItem(const size_t _index, const bool _acquire, OnAcquireItemT _fetch_fnc);
     void acquireBuild(const size_t _index, const std::string& _build_id);

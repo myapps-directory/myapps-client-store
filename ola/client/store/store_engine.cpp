@@ -357,7 +357,7 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
 
-void Engine::fetchItemBuilds(const size_t _index, OnFetchItemBuildsT _fetch_fnc)
+void Engine::fetchItemEntries(const size_t _index, OnFetchItemBuildsT _fetch_fnc)
 {
     auto lambda = [this, _fetch_fnc](
         frame::mprpc::ConnectionContext& _rctx,

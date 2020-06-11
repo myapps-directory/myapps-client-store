@@ -4,6 +4,7 @@
 #include "store_engine.hpp"
 #include <QAbstractListModel>
 #include <QListWidgetItem>
+#include <QTreeWidgetItem>
 #include <QMainWindow>
 #include <QStyledItemDelegate>
 #include <deque>
@@ -153,7 +154,7 @@ signals:
     void closeSignal();
     void offlineSignal(bool);
     void itemData(int _index, std::shared_ptr<ola::front::FetchBuildConfigurationResponse> _response_ptr);
-    void itemBuilds(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr);
+    void itemEntries(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr);
     void itemAcquire(int _index, bool _acquired);
 
 private slots:
@@ -162,7 +163,7 @@ private slots:
     void onAquireButtonToggled(bool _checked);
     void onConfigureButtonClicked(bool _checked);
     void itemDataSlot(int _index, std::shared_ptr<ola::front::FetchBuildConfigurationResponse> _response_ptr);
-    void itemBuildsSlot(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr);
+    void itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr);
     void itemAcquireSlot(int _index, bool _acquired);
     void imageDoubleClicked(QListWidgetItem*);
 
@@ -173,11 +174,17 @@ private slots:
 
     void buildChangedSlot(int _index);
 
+    void configureItemChangedSlot(QTreeWidgetItem* current, QTreeWidgetItem* previous);
+
+    void configureStateChangedSlot(int _index);
+
 private:
     void closeEvent(QCloseEvent*) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
     void showMediaThumbnails(int _index);
     void showItem(int _index);
+
+    void prepareConfigureForm(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr);
 
 private:
     struct Data;
