@@ -281,7 +281,7 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
         req_ptr->lang_  = pimpl_->config_.language_;
         req_ptr->os_id_ = pimpl_->config_.os_;
         req_ptr->build_id_ = build_request;
-        if (req_ptr->build_id_ == ola::utility::build_invalid) {
+        if (req_ptr->build_id_ == ola::utility::item_invalid) {
             req_ptr->build_id_.clear();
         }
 
@@ -410,7 +410,7 @@ void Engine::acquireBuild(const size_t _index, const std::string& _build_id) {
         pimpl_->app_list_file_.erase(pimpl_->app_dq_[_index].app_uid_);
     }
     else {
-        ola::utility::BuildEntry entry;
+        ola::utility::ItemEntry entry;
         entry.name_ = _build_id;
         pimpl_->app_list_file_.insert(pimpl_->app_dq_[_index].app_uid_, entry);
     }

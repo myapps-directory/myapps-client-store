@@ -23,5 +23,6 @@
         <file>images/review_accept.png</file>
         <file>images/configure.png</file>
         <file>images/none.png</file>
+        <file>images/trash.png</file>
     </qresource>
 </RCC>

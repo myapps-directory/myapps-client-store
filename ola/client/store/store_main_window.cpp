@@ -67,7 +67,8 @@ struct MainWindow::Data {
     ListModel       list_model_;
     QTreeWidgetItem* pcurrent_build_parent_ = nullptr;
     QTreeWidgetItem* pcurrent_media_parent_ = nullptr;
-    QTreeWidgetItem* pcurrent_item_ = nullptr;
+    QString          config_current_build_;
+    QString          config_current_media_;
 
     Data(Engine& _rengine, MainWindow* _pw)
         : list_model_(_rengine, sizes_)
@@ -123,7 +124,8 @@ struct MainWindow::Data {
     
     }
 
-    void configurePrepareStateComboBox(const ola::utility::BuildEntry& _build);
+    void configureBuildPrepareStateComboBox(const ola::utility::ItemEntry& _build);
+    void configureMediaPrepareStateComboBox(const ola::utility::ItemEntry& _build);
 };
 
 void ListItem::paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const
@@ -543,7 +545,12 @@ void MainWindow::showItem(int _index)
 {
     const QSize img_size{pimpl_->sizes_.image_width_, pimpl_->sizes_.image_height_};
 
+    if (pimpl_->current_item_ == _index) return;
+
     pimpl_->current_item_ = _index;
+    pimpl_->config_current_build_.clear();
+    pimpl_->config_current_media_.clear();
+
     auto& item            = pimpl_->list_model_.item(pimpl_->current_item_);
     pimpl_->item_form_.frame->setFixedHeight(pimpl_->sizes_.image_height_);
     pimpl_->item_form_.image_label->setFixedSize(img_size);
@@ -608,27 +615,29 @@ void MainWindow::itemDataSlot(int _index, std::shared_ptr<ola::front::FetchBuild
     }
 }
 
-const char* build_status_to_image_name(const ola::utility::BuildStateE _status)
+const char* build_status_to_image_name(const ola::utility::ItemStateE _status)
 {
-    using BuildStateE = ola::utility::BuildStateE;
+    using ItemStateE = ola::utility::ItemStateE;
     switch (_status) {
-    case BuildStateE::Invalid:
+    case ItemStateE::Invalid:
         return ":/images/none.png";
-    case BuildStateE::PrivateAlpha:
+    case ItemStateE::Trash:
+        return ":/images/trash.png";
+    case ItemStateE::PrivateAlpha:
         return ":/images/private_alpha.png";
-    case BuildStateE::ReviewRequest:
+    case ItemStateE::ReviewRequest:
         return ":/images/review_requested.png";
-    case BuildStateE::ReviewStarted:
+    case ItemStateE::ReviewStarted:
         return ":/images/review_started.png";
-    case BuildStateE::ReviewAccepted:
+    case ItemStateE::ReviewAccepted:
         return ":/images/review_accepted.png";
-    case BuildStateE::ReviewRejected:
+    case ItemStateE::ReviewRejected:
         return ":/images/review_rejected.png";
-    case BuildStateE::PublicAlpha:
+    case ItemStateE::PublicAlpha:
         return ":/images/public_alpha.png";
-    case BuildStateE::PublicBeta:
+    case ItemStateE::PublicBeta:
         return ":/images/public_beta.png";
-    case BuildStateE::PublicRelease:
+    case ItemStateE::PublicRelease:
         return ":/images/public_release.png";
     default:
         return "";
@@ -639,7 +648,7 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
     sort(
         _response_ptr->build_vec_.begin(),
         _response_ptr->build_vec_.end(),
-        [](const ola::utility::BuildEntry& _be1, const ola::utility::BuildEntry& _be2) {
+        [](const ola::utility::ItemEntry& _be1, const ola::utility::ItemEntry& _be2) {
             if (_be1.state() > _be2.state()) {
                 return true;
             }
@@ -652,20 +661,34 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
         }
     );
 
-    sort(_response_ptr->media_vec_.begin(), _response_ptr->media_vec_.end());
+    sort(
+        _response_ptr->media_vec_.begin(),
+        _response_ptr->media_vec_.end(),
+        [](const ola::utility::ItemEntry& _be1, const ola::utility::ItemEntry& _be2) {
+            if (_be1.state() > _be2.state()) {
+                return true;
+            }
+            else if (_be1.state() < _be2.state()) {
+                return false;
+            }
+            else {
+                return solid::cstring::casecmp(_be1.name_.c_str(), _be2.name_.c_str()) > 0;
+            }
+        }
+    );
 
     auto& item = pimpl_->list_model_.item(_index);
 
     pimpl_->item_form_.comboBox->clear();
 
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::BuildStateE::PublicRelease)), tr("Latest Available"));
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::BuildStateE::PublicRelease)), tr("Latest Public Release"));
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::BuildStateE::PublicBeta)), tr("Latest Public Beta"));
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::BuildStateE::PublicAlpha)), tr("Latest Public Alpha"));
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::BuildStateE::Invalid)), tr("Hide"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::ItemStateE::PublicRelease)), tr("Latest Available"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::ItemStateE::PublicRelease)), tr("Latest Public Release"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::ItemStateE::PublicBeta)), tr("Latest Public Beta"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::ItemStateE::PublicAlpha)), tr("Latest Public Alpha"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::ItemStateE::Invalid)), tr("Hide"));
 
     if (item.owned_) {
-        pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::BuildStateE::PrivateAlpha)), tr("Private Alpha"));
+        pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::ItemStateE::PrivateAlpha)), tr("Private Alpha"));
         pimpl_->item_form_.configure_button->show();
     }
     else {
@@ -681,42 +704,37 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
         pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(be.state())), name, static_cast<int>(be.state()));
     }
 
-    if (item.owned_) {
-        prepareConfigureForm(_index, _response_ptr);
-    }
-
-    //TODO: get the current build from the app_list_file
-
     if (!_response_ptr->build_vec_.empty()) {
         int index = -1;
         if (item.build_id_.isEmpty()) {
             index = 0;
         }
-        else if (item.build_id_ == ola::utility::build_public_release) {
+        else if (item.build_id_ == ola::utility::item_public_release) {
             index = 1;
         }
-        else if (item.build_id_ == ola::utility::build_public_beta) {
+        else if (item.build_id_ == ola::utility::item_public_beta) {
             index = 2;
         }
-        else if (item.build_id_ == ola::utility::build_public_alpha) {
+        else if (item.build_id_ == ola::utility::item_public_alpha) {
             index = 3;
         }
-        else if (item.build_id_ == ola::utility::build_invalid) {
+        else if (item.build_id_ == ola::utility::item_invalid) {
             index = 4;
         }
-        else if (item.owned_ && item.build_id_ == ola::utility::build_private_alpha) {
+        else if (item.owned_ && item.build_id_ == ola::utility::item_private_alpha) {
             index = 5;
         }
         else {
             for (int i = 5; i < pimpl_->item_form_.comboBox->count(); ++i) {
                 if (item.build_id_ == pimpl_->item_form_.comboBox->itemText(i)) {
                     index = i;
-                    auto state = static_cast<ola::utility::BuildStateE>(pimpl_->item_form_.comboBox->itemData(i).toInt());
+                    auto state = static_cast<ola::utility::ItemStateE>(pimpl_->item_form_.comboBox->itemData(i).toInt());
 
-                    if (!item.owned_ && state >= ola::utility::BuildStateE::ReviewRequest && state <= ola::utility::BuildStateE::ReviewRejected) {
+                    if (!item.owned_ && state >= ola::utility::ItemStateE::ReviewRequest && state <= ola::utility::ItemStateE::ReviewRejected) {
                         pimpl_->item_form_.review_accept_button->show();
                         pimpl_->item_form_.review_reject_button->show();
                     }
+                    break;
                 }
             }
             if (index < 0) {
@@ -727,6 +745,10 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
 
         pimpl_->item_form_.comboBox->setCurrentIndex(index);
     }
+
+    if (item.owned_) {
+        prepareConfigureForm(_index, _response_ptr);
+    }
 }
 
 void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr)
@@ -734,13 +756,19 @@ void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<ola::front::Fe
     pimpl_->configure_form_.treeWidget->setColumnCount(1);
     pimpl_->configure_form_.treeWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-    pimpl_->configure_form_.treeWidget->clear();
+    //pimpl_->configure_form_.treeWidget->clear();
 
     QList<QTreeWidgetItem*> build_items;
     QList<QTreeWidgetItem*> media_items;
 
-    pimpl_->pcurrent_build_parent_ = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList{ tr("Builds") });
-    pimpl_->pcurrent_media_parent_ = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList{ tr("Media") });
+    if (pimpl_->pcurrent_build_parent_ == nullptr) {
+        pimpl_->pcurrent_build_parent_ = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList{ tr("Builds") });
+        pimpl_->pcurrent_media_parent_ = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList{ tr("Media") });
+    }
+    else {
+        foreach(auto i, pimpl_->pcurrent_build_parent_->takeChildren()) delete i;
+        foreach(auto i, pimpl_->pcurrent_media_parent_->takeChildren()) delete i;
+    }
 
     for (const auto& be : _response_ptr->build_vec_)
     {
@@ -752,8 +780,10 @@ void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<ola::front::Fe
 
     for (const auto& me : _response_ptr->media_vec_)
     {
-        QString name = QString::fromStdString(me);
-        media_items.append(new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList(name)));
+        QString name = QString::fromStdString(me.name_);
+        auto pitem = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList(name));
+        pitem->setData(0, Qt::UserRole, me.value());
+        media_items.append(pitem);
     }
 
     pimpl_->pcurrent_build_parent_->addChildren(build_items);
@@ -764,8 +794,36 @@ void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<ola::front::Fe
     pimpl_->pcurrent_media_parent_->setFlags(pimpl_->pcurrent_media_parent_->flags() & (~Qt::ItemIsSelectable));
     pimpl_->configure_form_.treeWidget->addTopLevelItem(pimpl_->pcurrent_media_parent_);
 
-    pimpl_->configure_form_.deleteButton->hide();
     pimpl_->configure_form_.stateComboBox->hide();
+
+
+    if (!pimpl_->config_current_build_.isEmpty()) {
+        bool found = false;
+        foreach(auto i, pimpl_->configure_form_.treeWidget->findItems(pimpl_->config_current_build_, Qt::MatchFixedString | Qt::MatchRecursive)) {
+            if (i->parent() == pimpl_->pcurrent_build_parent_) {
+                found = true;
+                pimpl_->configure_form_.treeWidget->setCurrentItem(i);
+                break;
+            }
+        }
+
+        if (!found) {
+            pimpl_->config_current_build_.clear();
+        }
+    }else if (!pimpl_->config_current_media_.isEmpty()) {
+        bool found = false;
+        foreach(auto i, pimpl_->configure_form_.treeWidget->findItems(pimpl_->config_current_media_, Qt::MatchFixedString | Qt::MatchRecursive)) {
+            if (i->parent() == pimpl_->pcurrent_media_parent_) {
+                found = true;
+                pimpl_->configure_form_.treeWidget->setCurrentItem(i);
+                break;
+            }
+        }
+
+        if (!found) {
+            pimpl_->config_current_build_.clear();
+        }
+    }
 
     pimpl_->configure_form_.treeWidget->expandAll();
 }
@@ -958,19 +1016,19 @@ void MainWindow::buildChangedSlot(int _index)
     if (_index == 0) {
     }
     else if (_index == 1) {
-        build_id = ola::utility::build_public_release;
+        build_id = ola::utility::item_public_release;
     }
     else if (_index == 2) {
-        build_id = ola::utility::build_public_beta;
+        build_id = ola::utility::item_public_beta;
     }
     else if (_index == 3) {
-        build_id = ola::utility::build_public_alpha;
+        build_id = ola::utility::item_public_alpha;
     }
     else if (_index == 4) {
-        build_id = ola::utility::build_invalid;
+        build_id = ola::utility::item_invalid;
     }
     else if (item.owned_ && _index == 5) {
-        build_id = ola::utility::build_private_alpha;
+        build_id = ola::utility::item_private_alpha;
     }
     else {
         build_id = pimpl_->item_form_.comboBox->itemText(_index);
@@ -984,7 +1042,7 @@ void MainWindow::buildChangedSlot(int _index)
 
     if (!item.data_ptr_) {
         string build_id = item.build_id_.toStdString();
-        if (build_id == ola::utility::build_invalid) {
+        if (build_id == ola::utility::item_invalid) {
             build_id.clear();
         }
         pimpl_->engine().fetchItemData(
@@ -1002,79 +1060,109 @@ void MainWindow::buildChangedSlot(int _index)
 
 void MainWindow::configureItemChangedSlot(QTreeWidgetItem* _pcurrent, QTreeWidgetItem* _pprevious)
 {
-    pimpl_->pcurrent_item_ = _pcurrent;
     if (_pcurrent == nullptr) return;
 
     if (_pcurrent->parent() == pimpl_->pcurrent_build_parent_) {
-        pimpl_->configure_form_.deleteButton->show();
+        pimpl_->config_current_build_ = _pcurrent->text(0);
         pimpl_->configure_form_.stateComboBox->show();
+        
+        const ola::utility::ItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
 
-        const ola::utility::BuildEntry build_entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
-
-        pimpl_->configurePrepareStateComboBox(build_entry);
+        pimpl_->configureBuildPrepareStateComboBox(entry);
     }
     else if (_pcurrent->parent() == pimpl_->pcurrent_media_parent_)
     {
-        pimpl_->configure_form_.deleteButton->show();
-        pimpl_->configure_form_.stateComboBox->hide();
+        pimpl_->config_current_media_ = _pcurrent->text(0);
+
+        const ola::utility::ItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
+
+        pimpl_->configureMediaPrepareStateComboBox(entry);
     }
     else {
-        pimpl_->configure_form_.deleteButton->hide();
         pimpl_->configure_form_.stateComboBox->hide();
     }
+
+    pimpl_->configure_form_.frame->update();
 }
 
-
-void MainWindow::Data::configurePrepareStateComboBox(const ola::utility::BuildEntry& _build) {
+void MainWindow::Data::configureMediaPrepareStateComboBox(const ola::utility::ItemEntry& _item) {
     using namespace ola::utility;
     configure_form_.stateComboBox->clear();
     configure_form_.stateComboBox->setPlaceholderText(tr("Invalid"));
     configure_form_.stateComboBox->setCurrentIndex(-1);
 
-    if (_build.isFlagSet(BuildFlagE::ReviewAccepted)) {
-        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(BuildStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(BuildStateE::PrivateAlpha));
-        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(BuildStateE::PublicAlpha)), tr("Public Alpha"), static_cast<int>(BuildStateE::PublicAlpha));
-        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(BuildStateE::PublicBeta)), tr("Public Beta"), static_cast<int>(BuildStateE::PublicBeta));
-        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(BuildStateE::PublicRelease)), tr("Public Release"), static_cast<int>(BuildStateE::PublicRelease));
+    configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::Trash)), tr("Trash"), static_cast<int>(ItemStateE::Trash));
+    configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PublicRelease)), tr("Public Release"), static_cast<int>(ItemStateE::PublicRelease));
+
+    switch (_item.state()) {
+    case ItemStateE::Invalid:break;
+    case ItemStateE::Trash:
+        configure_form_.stateComboBox->setCurrentIndex(0);
+        break;
+    case ItemStateE::PublicRelease:
+        configure_form_.stateComboBox->setCurrentIndex(1);
+        break;
+    default:
+        break;
     }
-    else if(_build.isFlagSet(BuildFlagE::ReviewRejected)) {
-        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(BuildStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(BuildStateE::PrivateAlpha));
+}
+
+void MainWindow::Data::configureBuildPrepareStateComboBox(const ola::utility::ItemEntry& _item) {
+    using namespace ola::utility;
+    configure_form_.stateComboBox->clear();
+    configure_form_.stateComboBox->setPlaceholderText(tr("Invalid"));
+    configure_form_.stateComboBox->setCurrentIndex(-1);
+
+    if (_item.isFlagSet(ItemFlagE::ReviewAccepted)) {
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::Trash)), tr("Trash"), static_cast<int>(ItemStateE::Trash));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(ItemStateE::PrivateAlpha));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PublicAlpha)), tr("Public Alpha"), static_cast<int>(ItemStateE::PublicAlpha));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PublicBeta)), tr("Public Beta"), static_cast<int>(ItemStateE::PublicBeta));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PublicRelease)), tr("Public Release"), static_cast<int>(ItemStateE::PublicRelease));
+    }
+    else if(_item.isFlagSet(ItemFlagE::ReviewRejected)) {
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::Trash)), tr("Trash"), static_cast<int>(ItemStateE::Trash));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(ItemStateE::PrivateAlpha));
     }
     else {
-        if (_build.state() != BuildStateE::ReviewStarted) {
-            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(BuildStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(BuildStateE::PrivateAlpha));
-            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(BuildStateE::ReviewRequest)), tr("Review Request"), static_cast<int>(BuildStateE::ReviewRequest));
+        if (_item.state() != ItemStateE::ReviewStarted) {
+            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::Trash)), tr("Trash"), static_cast<int>(ItemStateE::Trash));
+            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(ItemStateE::PrivateAlpha));
+            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::ReviewRequest)), tr("Review Request"), static_cast<int>(ItemStateE::ReviewRequest));
         }
     }
 
-    switch (_build.state()) {
-    case BuildStateE::Invalid:break;
-    case BuildStateE::PrivateAlpha:
+    switch (_item.state()) {
+    case ItemStateE::Invalid:break;
+    case ItemStateE::Trash:
         configure_form_.stateComboBox->setCurrentIndex(0);
         break;
-    case BuildStateE::ReviewRequest:
+    case ItemStateE::PrivateAlpha:
         configure_form_.stateComboBox->setCurrentIndex(1);
         break;
-    case BuildStateE::ReviewStarted:
+    case ItemStateE::ReviewRequest:
+        configure_form_.stateComboBox->setCurrentIndex(2);
+        break;
+    case ItemStateE::ReviewStarted:
         configure_form_.stateComboBox->setPlaceholderText(tr("Review Started"));
         configure_form_.stateComboBox->setCurrentIndex(-1);
         break;
-    case BuildStateE::ReviewAccepted:
+    case ItemStateE::ReviewAccepted:
         configure_form_.stateComboBox->setPlaceholderText(tr("Review Accepted"));
         configure_form_.stateComboBox->setCurrentIndex(-1);
         break;
-    case BuildStateE::ReviewRejected:
+    case ItemStateE::ReviewRejected:
         configure_form_.stateComboBox->setPlaceholderText(tr("Review Rejected"));
         configure_form_.stateComboBox->setCurrentIndex(-1);
         break;
-    case BuildStateE::PublicAlpha:
-        configure_form_.stateComboBox->setCurrentIndex(1);
-        break;
-    case BuildStateE::PublicBeta:
+    case ItemStateE::PublicAlpha:
         configure_form_.stateComboBox->setCurrentIndex(2);
         break;
-    case BuildStateE::PublicRelease:
+    case ItemStateE::PublicBeta:
         configure_form_.stateComboBox->setCurrentIndex(3);
+        break;
+    case ItemStateE::PublicRelease:
+        configure_form_.stateComboBox->setCurrentIndex(4);
         break;
     default:
         break;
@@ -1084,20 +1172,18 @@ void MainWindow::Data::configurePrepareStateComboBox(const ola::utility::BuildEn
 void MainWindow::configureStateChangedSlot(int _index) {
     using namespace ola::utility;
 
-    if (pimpl_->pcurrent_item_->parent() != pimpl_->pcurrent_build_parent_) {
-        return;
-    }
+    auto pcurrent_item = pimpl_->configure_form_.treeWidget->currentItem();
 
     if (pimpl_->configure_form_.stateComboBox->count() == 0) {
         return;
     }
 
-    BuildEntry build_entry{ pimpl_->pcurrent_item_->data(0, Qt::UserRole).toULongLong() };
+    ItemEntry item_entry{ pcurrent_item->data(0, Qt::UserRole).toULongLong() };
     const int req_state = pimpl_->configure_form_.stateComboBox->itemData(_index).toInt();
-    if (static_cast<int>(build_entry.state()) != req_state)
+    if (static_cast<int>(item_entry.state()) != req_state)
     {
-        build_entry.state(static_cast<BuildStateE>(req_state));
-        pimpl_->pcurrent_item_->setData(0, Qt::UserRole, build_entry.value());
+        item_entry.state(static_cast<ItemStateE>(req_state));
+        pcurrent_item->setData(0, Qt::UserRole, item_entry.value());
     }
 }
 
