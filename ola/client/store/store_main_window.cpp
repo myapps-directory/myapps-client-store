@@ -124,8 +124,8 @@ struct MainWindow::Data {
     
     }
 
-    void configureBuildPrepareStateComboBox(const ola::utility::ItemEntry& _build);
-    void configureMediaPrepareStateComboBox(const ola::utility::ItemEntry& _build);
+    void configureBuildPrepareStateComboBox(const ola::utility::AppItemEntry& _build);
+    void configureMediaPrepareStateComboBox(const ola::utility::AppItemEntry& _build);
 };
 
 void ListItem::paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const
@@ -615,29 +615,29 @@ void MainWindow::itemDataSlot(int _index, std::shared_ptr<ola::front::FetchBuild
     }
 }
 
-const char* build_status_to_image_name(const ola::utility::ItemStateE _status)
+const char* build_status_to_image_name(const ola::utility::AppItemStateE _status)
 {
-    using ItemStateE = ola::utility::ItemStateE;
+    using AppItemStateE = ola::utility::AppItemStateE;
     switch (_status) {
-    case ItemStateE::Invalid:
+    case AppItemStateE::Invalid:
         return ":/images/none.png";
-    case ItemStateE::Trash:
+    case AppItemStateE::Trash:
         return ":/images/trash.png";
-    case ItemStateE::PrivateAlpha:
+    case AppItemStateE::PrivateAlpha:
         return ":/images/private_alpha.png";
-    case ItemStateE::ReviewRequest:
+    case AppItemStateE::ReviewRequest:
         return ":/images/review_requested.png";
-    case ItemStateE::ReviewStarted:
+    case AppItemStateE::ReviewStarted:
         return ":/images/review_started.png";
-    case ItemStateE::ReviewAccepted:
+    case AppItemStateE::ReviewAccepted:
         return ":/images/review_accepted.png";
-    case ItemStateE::ReviewRejected:
+    case AppItemStateE::ReviewRejected:
         return ":/images/review_rejected.png";
-    case ItemStateE::PublicAlpha:
+    case AppItemStateE::PublicAlpha:
         return ":/images/public_alpha.png";
-    case ItemStateE::PublicBeta:
+    case AppItemStateE::PublicBeta:
         return ":/images/public_beta.png";
-    case ItemStateE::PublicRelease:
+    case AppItemStateE::PublicRelease:
         return ":/images/public_release.png";
     default:
         return "";
@@ -645,34 +645,33 @@ const char* build_status_to_image_name(const ola::utility::ItemStateE _status)
 }
 
 void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr){
-    sort(
-        _response_ptr->build_vec_.begin(),
-        _response_ptr->build_vec_.end(),
-        [](const ola::utility::ItemEntry& _be1, const ola::utility::ItemEntry& _be2) {
-            if (_be1.state() > _be2.state()) {
-                return true;
-            }
-            else if (_be1.state() < _be2.state()) {
-                return false;
-            }
-            else {
-                return solid::cstring::casecmp(_be1.name_.c_str(), _be2.name_.c_str()) > 0;
-            }
+    if (!_response_ptr) return;
+    if (_response_ptr->error_ != 0) {
+        solid_log(logger, Error, "FetchAppResponse error: "<< _response_ptr->error_<<" message: "<< _response_ptr->message_);
+        if (_response_ptr->item_vec_.empty()) {
+            return;
         }
-    );
+    }
+    if (_index != pimpl_->current_item_) return;
 
     sort(
-        _response_ptr->media_vec_.begin(),
-        _response_ptr->media_vec_.end(),
-        [](const ola::utility::ItemEntry& _be1, const ola::utility::ItemEntry& _be2) {
-            if (_be1.state() > _be2.state()) {
+        _response_ptr->item_vec_.begin(),
+        _response_ptr->item_vec_.end(),
+        [](const ola::utility::AppItemEntry& _e1, const ola::utility::AppItemEntry& _e2) {
+            if (_e1.type() < _e2.type()) {
                 return true;
             }
-            else if (_be1.state() < _be2.state()) {
+            else if (_e1.type() > _e2.type()){
+                return false;
+            }
+            else if (_e1.state() > _e2.state()) {
+                return true;
+            }
+            else if (_e1.state() < _e2.state()) {
                 return false;
             }
             else {
-                return solid::cstring::casecmp(_be1.name_.c_str(), _be2.name_.c_str()) > 0;
+                return solid::cstring::cmp(_e1.name_.c_str(), _e2.name_.c_str()) > 0;
             }
         }
     );
@@ -681,14 +680,14 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
 
     pimpl_->item_form_.comboBox->clear();
 
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::ItemStateE::PublicRelease)), tr("Latest Available"));
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::ItemStateE::PublicRelease)), tr("Latest Public Release"));
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::ItemStateE::PublicBeta)), tr("Latest Public Beta"));
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::ItemStateE::PublicAlpha)), tr("Latest Public Alpha"));
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::ItemStateE::Invalid)), tr("Hide"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::AppItemStateE::PublicRelease)), tr("Latest Available"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::AppItemStateE::PublicRelease)), tr("Latest Public Release"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::AppItemStateE::PublicBeta)), tr("Latest Public Beta"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::AppItemStateE::PublicAlpha)), tr("Latest Public Alpha"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::AppItemStateE::Invalid)), tr("Hide"));
 
     if (item.owned_) {
-        pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::ItemStateE::PrivateAlpha)), tr("Private Alpha"));
+        pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::AppItemStateE::PrivateAlpha)), tr("Private Alpha"));
         pimpl_->item_form_.configure_button->show();
     }
     else {
@@ -698,39 +697,45 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
     pimpl_->item_form_.review_accept_button->hide();
     pimpl_->item_form_.review_reject_button->hide();
 
-    for (const auto& be : _response_ptr->build_vec_)
+    bool found_any_build = false;
+    for (const auto& e : _response_ptr->item_vec_)
     {
-        QString name = QString::fromStdString(be.name_);
-        pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(be.state())), name, static_cast<int>(be.state()));
+        if (e.type() == ola::utility::AppItemTypeE::Build) {
+            if (e.state() != ola::utility::AppItemStateE::Trash) {
+                found_any_build = true;
+                QString name = QString::fromStdString(e.name_);
+                pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(e.state())), name, static_cast<int>(e.state()));
+            }
+        }
     }
 
-    if (!_response_ptr->build_vec_.empty()) {
+    if (found_any_build) {
         int index = -1;
         if (item.build_id_.isEmpty()) {
             index = 0;
         }
-        else if (item.build_id_ == ola::utility::item_public_release) {
+        else if (item.build_id_ == ola::utility::app_item_public_release) {
             index = 1;
         }
-        else if (item.build_id_ == ola::utility::item_public_beta) {
+        else if (item.build_id_ == ola::utility::app_item_public_beta) {
             index = 2;
         }
-        else if (item.build_id_ == ola::utility::item_public_alpha) {
+        else if (item.build_id_ == ola::utility::app_item_public_alpha) {
             index = 3;
         }
-        else if (item.build_id_ == ola::utility::item_invalid) {
+        else if (item.build_id_ == ola::utility::app_item_invalid) {
             index = 4;
         }
-        else if (item.owned_ && item.build_id_ == ola::utility::item_private_alpha) {
+        else if (item.owned_ && item.build_id_ == ola::utility::app_item_private_alpha) {
             index = 5;
         }
         else {
             for (int i = 5; i < pimpl_->item_form_.comboBox->count(); ++i) {
                 if (item.build_id_ == pimpl_->item_form_.comboBox->itemText(i)) {
                     index = i;
-                    auto state = static_cast<ola::utility::ItemStateE>(pimpl_->item_form_.comboBox->itemData(i).toInt());
+                    auto state = static_cast<ola::utility::AppItemStateE>(pimpl_->item_form_.comboBox->itemData(i).toInt());
 
-                    if (!item.owned_ && state >= ola::utility::ItemStateE::ReviewRequest && state <= ola::utility::ItemStateE::ReviewRejected) {
+                    if (!item.owned_ && state >= ola::utility::AppItemStateE::ReviewRequest && state <= ola::utility::AppItemStateE::ReviewRejected) {
                         pimpl_->item_form_.review_accept_button->show();
                         pimpl_->item_form_.review_reject_button->show();
                     }
@@ -770,20 +775,18 @@ void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<ola::front::Fe
         foreach(auto i, pimpl_->pcurrent_media_parent_->takeChildren()) delete i;
     }
 
-    for (const auto& be : _response_ptr->build_vec_)
+    for (const auto& e : _response_ptr->item_vec_)
     {
-        QString name = QString::fromStdString(be.name_);
+        QString name = QString::fromStdString(e.name_);
         auto pitem = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList(name));
-        pitem->setData(0, Qt::UserRole, be.value());
-        build_items.append(pitem);
-    }
-
-    for (const auto& me : _response_ptr->media_vec_)
-    {
-        QString name = QString::fromStdString(me.name_);
-        auto pitem = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList(name));
-        pitem->setData(0, Qt::UserRole, me.value());
-        media_items.append(pitem);
+        pitem->setIcon(0, QIcon(build_status_to_image_name(e.state())));
+        pitem->setData(0, Qt::UserRole, e.value());
+        if (e.type() == ola::utility::AppItemTypeE::Build) {
+            build_items.append(pitem);
+        }
+        else if (e.type() == ola::utility::AppItemTypeE::Media) {
+            media_items.append(pitem);
+        }
     }
 
     pimpl_->pcurrent_build_parent_->addChildren(build_items);
@@ -1016,19 +1019,19 @@ void MainWindow::buildChangedSlot(int _index)
     if (_index == 0) {
     }
     else if (_index == 1) {
-        build_id = ola::utility::item_public_release;
+        build_id = ola::utility::app_item_public_release;
     }
     else if (_index == 2) {
-        build_id = ola::utility::item_public_beta;
+        build_id = ola::utility::app_item_public_beta;
     }
     else if (_index == 3) {
-        build_id = ola::utility::item_public_alpha;
+        build_id = ola::utility::app_item_public_alpha;
     }
     else if (_index == 4) {
-        build_id = ola::utility::item_invalid;
+        build_id = ola::utility::app_item_invalid;
     }
     else if (item.owned_ && _index == 5) {
-        build_id = ola::utility::item_private_alpha;
+        build_id = ola::utility::app_item_private_alpha;
     }
     else {
         build_id = pimpl_->item_form_.comboBox->itemText(_index);
@@ -1042,7 +1045,7 @@ void MainWindow::buildChangedSlot(int _index)
 
     if (!item.data_ptr_) {
         string build_id = item.build_id_.toStdString();
-        if (build_id == ola::utility::item_invalid) {
+        if (build_id == ola::utility::app_item_invalid) {
             build_id.clear();
         }
         pimpl_->engine().fetchItemData(
@@ -1066,15 +1069,16 @@ void MainWindow::configureItemChangedSlot(QTreeWidgetItem* _pcurrent, QTreeWidge
         pimpl_->config_current_build_ = _pcurrent->text(0);
         pimpl_->configure_form_.stateComboBox->show();
         
-        const ola::utility::ItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
+        const ola::utility::AppItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
 
         pimpl_->configureBuildPrepareStateComboBox(entry);
     }
     else if (_pcurrent->parent() == pimpl_->pcurrent_media_parent_)
     {
         pimpl_->config_current_media_ = _pcurrent->text(0);
+        pimpl_->configure_form_.stateComboBox->show();
 
-        const ola::utility::ItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
+        const ola::utility::AppItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
 
         pimpl_->configureMediaPrepareStateComboBox(entry);
     }
@@ -1085,21 +1089,21 @@ void MainWindow::configureItemChangedSlot(QTreeWidgetItem* _pcurrent, QTreeWidge
     pimpl_->configure_form_.frame->update();
 }
 
-void MainWindow::Data::configureMediaPrepareStateComboBox(const ola::utility::ItemEntry& _item) {
+void MainWindow::Data::configureMediaPrepareStateComboBox(const ola::utility::AppItemEntry& _item) {
     using namespace ola::utility;
     configure_form_.stateComboBox->clear();
     configure_form_.stateComboBox->setPlaceholderText(tr("Invalid"));
     configure_form_.stateComboBox->setCurrentIndex(-1);
 
-    configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::Trash)), tr("Trash"), static_cast<int>(ItemStateE::Trash));
-    configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PublicRelease)), tr("Public Release"), static_cast<int>(ItemStateE::PublicRelease));
+    configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Trash)), tr("Trash"), static_cast<int>(AppItemStateE::Trash));
+    configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicRelease)), tr("Public Release"), static_cast<int>(AppItemStateE::PublicRelease));
 
     switch (_item.state()) {
-    case ItemStateE::Invalid:break;
-    case ItemStateE::Trash:
+    case AppItemStateE::Invalid:break;
+    case AppItemStateE::Trash:
         configure_form_.stateComboBox->setCurrentIndex(0);
         break;
-    case ItemStateE::PublicRelease:
+    case AppItemStateE::PublicRelease:
         configure_form_.stateComboBox->setCurrentIndex(1);
         break;
     default:
@@ -1107,61 +1111,61 @@ void MainWindow::Data::configureMediaPrepareStateComboBox(const ola::utility::It
     }
 }
 
-void MainWindow::Data::configureBuildPrepareStateComboBox(const ola::utility::ItemEntry& _item) {
+void MainWindow::Data::configureBuildPrepareStateComboBox(const ola::utility::AppItemEntry& _item) {
     using namespace ola::utility;
     configure_form_.stateComboBox->clear();
     configure_form_.stateComboBox->setPlaceholderText(tr("Invalid"));
     configure_form_.stateComboBox->setCurrentIndex(-1);
 
-    if (_item.isFlagSet(ItemFlagE::ReviewAccepted)) {
-        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::Trash)), tr("Trash"), static_cast<int>(ItemStateE::Trash));
-        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(ItemStateE::PrivateAlpha));
-        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PublicAlpha)), tr("Public Alpha"), static_cast<int>(ItemStateE::PublicAlpha));
-        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PublicBeta)), tr("Public Beta"), static_cast<int>(ItemStateE::PublicBeta));
-        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PublicRelease)), tr("Public Release"), static_cast<int>(ItemStateE::PublicRelease));
+    if (_item.isFlagSet(AppItemFlagE::ReviewAccepted)) {
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Trash)), tr("Trash"), static_cast<int>(AppItemStateE::Trash));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(AppItemStateE::PrivateAlpha));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicAlpha)), tr("Public Alpha"), static_cast<int>(AppItemStateE::PublicAlpha));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicBeta)), tr("Public Beta"), static_cast<int>(AppItemStateE::PublicBeta));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicRelease)), tr("Public Release"), static_cast<int>(AppItemStateE::PublicRelease));
     }
-    else if(_item.isFlagSet(ItemFlagE::ReviewRejected)) {
-        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::Trash)), tr("Trash"), static_cast<int>(ItemStateE::Trash));
-        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(ItemStateE::PrivateAlpha));
+    else if(_item.isFlagSet(AppItemFlagE::ReviewRejected)) {
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Trash)), tr("Trash"), static_cast<int>(AppItemStateE::Trash));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(AppItemStateE::PrivateAlpha));
     }
     else {
-        if (_item.state() != ItemStateE::ReviewStarted) {
-            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::Trash)), tr("Trash"), static_cast<int>(ItemStateE::Trash));
-            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(ItemStateE::PrivateAlpha));
-            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(ItemStateE::ReviewRequest)), tr("Review Request"), static_cast<int>(ItemStateE::ReviewRequest));
+        if (_item.state() != AppItemStateE::ReviewStarted) {
+            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Trash)), tr("Trash"), static_cast<int>(AppItemStateE::Trash));
+            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(AppItemStateE::PrivateAlpha));
+            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::ReviewRequest)), tr("Review Request"), static_cast<int>(AppItemStateE::ReviewRequest));
         }
     }
 
     switch (_item.state()) {
-    case ItemStateE::Invalid:break;
-    case ItemStateE::Trash:
+    case AppItemStateE::Invalid:break;
+    case AppItemStateE::Trash:
         configure_form_.stateComboBox->setCurrentIndex(0);
         break;
-    case ItemStateE::PrivateAlpha:
+    case AppItemStateE::PrivateAlpha:
         configure_form_.stateComboBox->setCurrentIndex(1);
         break;
-    case ItemStateE::ReviewRequest:
+    case AppItemStateE::ReviewRequest:
         configure_form_.stateComboBox->setCurrentIndex(2);
         break;
-    case ItemStateE::ReviewStarted:
+    case AppItemStateE::ReviewStarted:
         configure_form_.stateComboBox->setPlaceholderText(tr("Review Started"));
         configure_form_.stateComboBox->setCurrentIndex(-1);
         break;
-    case ItemStateE::ReviewAccepted:
+    case AppItemStateE::ReviewAccepted:
         configure_form_.stateComboBox->setPlaceholderText(tr("Review Accepted"));
         configure_form_.stateComboBox->setCurrentIndex(-1);
         break;
-    case ItemStateE::ReviewRejected:
+    case AppItemStateE::ReviewRejected:
         configure_form_.stateComboBox->setPlaceholderText(tr("Review Rejected"));
         configure_form_.stateComboBox->setCurrentIndex(-1);
         break;
-    case ItemStateE::PublicAlpha:
+    case AppItemStateE::PublicAlpha:
         configure_form_.stateComboBox->setCurrentIndex(2);
         break;
-    case ItemStateE::PublicBeta:
+    case AppItemStateE::PublicBeta:
         configure_form_.stateComboBox->setCurrentIndex(3);
         break;
-    case ItemStateE::PublicRelease:
+    case AppItemStateE::PublicRelease:
         configure_form_.stateComboBox->setCurrentIndex(4);
         break;
     default:
@@ -1178,12 +1182,29 @@ void MainWindow::configureStateChangedSlot(int _index) {
         return;
     }
 
-    ItemEntry item_entry{ pcurrent_item->data(0, Qt::UserRole).toULongLong() };
+    AppItemEntry item_entry{ pcurrent_item->data(0, Qt::UserRole).toULongLong() };
     const int req_state = pimpl_->configure_form_.stateComboBox->itemData(_index).toInt();
     if (static_cast<int>(item_entry.state()) != req_state)
     {
-        item_entry.state(static_cast<ItemStateE>(req_state));
-        pcurrent_item->setData(0, Qt::UserRole, item_entry.value());
+        //item_entry.state(static_cast<AppItemStateE>(req_state));
+        //pcurrent_item->setData(0, Qt::UserRole, item_entry.value());
+        auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
+
+        item_entry.name_ = pcurrent_item->text(0).toStdString();
+        pimpl_->engine().changeAppItemState(
+            item.engine_index_,
+            item_entry, req_state,
+            [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::Response>& _response_ptr) {
+                solid_log(logger, Verbose, "ChangeAppItemState response: "<<_response_ptr->error_<<" message: "<<_response_ptr->message_);
+                
+                pimpl_->engine().fetchItemEntries(
+                    engine_index,
+                    [this, index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+                        //called on another thread - need to move the data onto GUI thread
+                        emit itemEntries(index, _response_ptr);
+                    });
+            }
+        );
     }
 }
 

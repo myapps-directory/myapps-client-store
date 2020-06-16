@@ -281,7 +281,7 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
         req_ptr->lang_  = pimpl_->config_.language_;
         req_ptr->os_id_ = pimpl_->config_.os_;
         req_ptr->build_id_ = build_request;
-        if (req_ptr->build_id_ == ola::utility::item_invalid) {
+        if (req_ptr->build_id_ == ola::utility::app_item_invalid) {
             req_ptr->build_id_.clear();
         }
 
@@ -357,7 +357,7 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
 
-void Engine::fetchItemEntries(const size_t _index, OnFetchItemBuildsT _fetch_fnc)
+void Engine::fetchItemEntries(const size_t _index, OnFetchAppItemsT _fetch_fnc)
 {
     auto lambda = [this, _fetch_fnc](
         frame::mprpc::ConnectionContext& _rctx,
@@ -410,11 +410,39 @@ void Engine::acquireBuild(const size_t _index, const std::string& _build_id) {
         pimpl_->app_list_file_.erase(pimpl_->app_dq_[_index].app_uid_);
     }
     else {
-        ola::utility::ItemEntry entry;
+        ola::utility::AppItemEntry entry;
         entry.name_ = _build_id;
         pimpl_->app_list_file_.insert(pimpl_->app_dq_[_index].app_uid_, entry);
     }
     pimpl_->app_list_file_.store(pimpl_->config_.app_list_file_path_);
+}
+
+void Engine::changeAppItemState(
+    const size_t _index,
+    const ola::utility::AppItemEntry& _app_item,
+    const uint8_t _req_state,
+    OnResponseT _on_response_fnc
+) {
+    auto lambda = [this, _on_response_fnc](
+        frame::mprpc::ConnectionContext& _rctx,
+        std::shared_ptr<ola::front::ChangeAppItemStateRequest>& _rsent_msg_ptr,
+        std::shared_ptr<ola::front::Response>& _rrecv_msg_ptr,
+        ErrorConditionT const& _rerror) {
+
+            _on_response_fnc(_rrecv_msg_ptr);
+    };
+
+    auto req_ptr = make_shared<ola::front::ChangeAppItemStateRequest>();
+    {
+        lock_guard<mutex> lock(pimpl_->mutex_);
+        req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
+    }
+
+    req_ptr->os_id_ = pimpl_->config_.os_;
+    req_ptr->item_ = _app_item;
+    req_ptr->new_state_ = _req_state;
+
+    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
 
 } //namespace store

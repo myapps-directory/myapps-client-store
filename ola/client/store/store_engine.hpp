@@ -30,8 +30,9 @@ class Engine{
     solid::PimplT<Implementation> pimpl_;
 public:
     using OnFetchItemDataT = std::function<void(std::shared_ptr<ola::front::FetchBuildConfigurationResponse>&)>;
-    using OnFetchItemBuildsT = std::function<void(std::shared_ptr<ola::front::FetchAppResponse>&)>;
+    using OnFetchAppItemsT = std::function<void(std::shared_ptr<ola::front::FetchAppResponse>&)>;
     using OnAcquireItemT = std::function<void(bool)>;
+    using OnResponseT = std::function<void(std::shared_ptr<ola::front::Response>&)>;
 
     Engine(solid::frame::mprpc::ServiceT& _rrpc_service);
     ~Engine();
@@ -47,10 +48,17 @@ public:
     void onModelFetchedItems(size_t _model_index, size_t _engine_current_index, size_t _count);
 
     void fetchItemData(const size_t _index, const std::string &_build_name, OnFetchItemDataT _fetch_fnc);
-    void fetchItemEntries(const size_t _index, OnFetchItemBuildsT _fetch_fnc);
+    void fetchItemEntries(const size_t _index, OnFetchAppItemsT _fetch_fnc);
 
     void acquireItem(const size_t _index, const bool _acquire, OnAcquireItemT _fetch_fnc);
     void acquireBuild(const size_t _index, const std::string& _build_id);
+
+    void changeAppItemState(
+        const size_t _index,
+        const ola::utility::AppItemEntry &_app_item,
+        const uint8_t _req_state,
+        OnResponseT _on_response_fnc
+    );
 };
 
 } //namespace store
