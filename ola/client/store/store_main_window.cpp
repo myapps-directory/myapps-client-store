@@ -451,6 +451,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     connect(&pimpl_->back_action_, &QAction::triggered, this, &MainWindow::goBackSlot);
     connect(&pimpl_->about_action_, &QAction::triggered, this, &MainWindow::goAboutSlot);
     connect(pimpl_->item_form_.configure_button, SIGNAL(clicked(bool)), this, SLOT(onConfigureButtonClicked(bool)));
+    connect(pimpl_->item_form_.review_accept_button, SIGNAL(clicked(bool)), this, SLOT(onReviewAcceptButtonClicked(bool)));
+    connect(pimpl_->item_form_.review_reject_button, SIGNAL(clicked(bool)), this, SLOT(onReviewRejectButtonClicked(bool)));
 
     connect(pimpl_->configure_form_.treeWidget, SIGNAL(currentItemChanged(QTreeWidgetItem *, QTreeWidgetItem *)), this, SLOT(configureItemChangedSlot(QTreeWidgetItem *, QTreeWidgetItem *)));
     
@@ -645,6 +647,8 @@ const char* build_status_to_image_name(const ola::utility::AppItemStateE _status
 }
 
 void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr){
+    using namespace ola::utility;
+
     if (!_response_ptr) return;
     if (_response_ptr->error_ != 0) {
         solid_log(logger, Error, "FetchAppResponse error: "<< _response_ptr->error_<<" message: "<< _response_ptr->message_);
@@ -657,7 +661,7 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
     sort(
         _response_ptr->item_vec_.begin(),
         _response_ptr->item_vec_.end(),
-        [](const ola::utility::AppItemEntry& _e1, const ola::utility::AppItemEntry& _e2) {
+        [](const AppItemEntry& _e1, const AppItemEntry& _e2) {
             if (_e1.type() < _e2.type()) {
                 return true;
             }
@@ -680,14 +684,14 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
 
     pimpl_->item_form_.comboBox->clear();
 
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::AppItemStateE::PublicRelease)), tr("Latest Available"));
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::AppItemStateE::PublicRelease)), tr("Latest Public Release"));
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::AppItemStateE::PublicBeta)), tr("Latest Public Beta"));
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::AppItemStateE::PublicAlpha)), tr("Latest Public Alpha"));
-    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::AppItemStateE::Invalid)), tr("Hide"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicRelease)), tr("Latest Available"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicRelease)), tr("Latest Public Release"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicBeta)), tr("Latest Public Beta"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicAlpha)), tr("Latest Public Alpha"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Invalid)), tr("Hide"));
 
     if (item.owned_) {
-        pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(ola::utility::AppItemStateE::PrivateAlpha)), tr("Private Alpha"));
+        pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PrivateAlpha)), tr("Private Alpha"));
         pimpl_->item_form_.configure_button->show();
     }
     else {
@@ -700,11 +704,11 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
     bool found_any_build = false;
     for (const auto& e : _response_ptr->item_vec_)
     {
-        if (e.type() == ola::utility::AppItemTypeE::Build) {
-            if (e.state() != ola::utility::AppItemStateE::Trash) {
+        if (e.type() == AppItemTypeE::Build) {
+            if (e.state() != AppItemStateE::Trash) {
                 found_any_build = true;
                 QString name = QString::fromStdString(e.name_);
-                pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(e.state())), name, static_cast<int>(e.state()));
+                pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(e.state())), name, e.value());
             }
         }
     }
@@ -714,16 +718,16 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
         if (item.build_id_.isEmpty()) {
             index = 0;
         }
-        else if (item.build_id_ == ola::utility::app_item_public_release) {
+        else if (item.build_id_ == app_item_public_release) {
             index = 1;
         }
-        else if (item.build_id_ == ola::utility::app_item_public_beta) {
+        else if (item.build_id_ == app_item_public_beta) {
             index = 2;
         }
-        else if (item.build_id_ == ola::utility::app_item_public_alpha) {
+        else if (item.build_id_ == app_item_public_alpha) {
             index = 3;
         }
-        else if (item.build_id_ == ola::utility::app_item_invalid) {
+        else if (item.build_id_ == app_item_invalid) {
             index = 4;
         }
         else if (item.owned_ && item.build_id_ == ola::utility::app_item_private_alpha) {
@@ -733,9 +737,9 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
             for (int i = 5; i < pimpl_->item_form_.comboBox->count(); ++i) {
                 if (item.build_id_ == pimpl_->item_form_.comboBox->itemText(i)) {
                     index = i;
-                    auto state = static_cast<ola::utility::AppItemStateE>(pimpl_->item_form_.comboBox->itemData(i).toInt());
+                    AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(i).toULongLong()};
 
-                    if (!item.owned_ && state >= ola::utility::AppItemStateE::ReviewRequest && state <= ola::utility::AppItemStateE::ReviewRejected) {
+                    if (!item.owned_ && entry.state() >= AppItemStateE::ReviewRequest && entry.state() <= AppItemStateE::ReviewRejected) {
                         pimpl_->item_form_.review_accept_button->show();
                         pimpl_->item_form_.review_reject_button->show();
                     }
@@ -1010,6 +1014,8 @@ void MainWindow::goAboutSlot(bool)
 
 void MainWindow::buildChangedSlot(int _index)
 {
+    using namespace ola::utility;
+
     if (pimpl_->item_form_.comboBox->count() == 0) {
         return;
     }
@@ -1019,25 +1025,55 @@ void MainWindow::buildChangedSlot(int _index)
     if (_index == 0) {
     }
     else if (_index == 1) {
-        build_id = ola::utility::app_item_public_release;
+        build_id = app_item_public_release;
     }
     else if (_index == 2) {
-        build_id = ola::utility::app_item_public_beta;
+        build_id = app_item_public_beta;
     }
     else if (_index == 3) {
-        build_id = ola::utility::app_item_public_alpha;
+        build_id = app_item_public_alpha;
     }
     else if (_index == 4) {
-        build_id = ola::utility::app_item_invalid;
+        build_id = app_item_invalid;
     }
     else if (item.owned_ && _index == 5) {
-        build_id = ola::utility::app_item_private_alpha;
+        build_id = app_item_private_alpha;
     }
     else {
         build_id = pimpl_->item_form_.comboBox->itemText(_index);
     }
     
     if (build_id != item.build_id_) {
+        AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(_index).toULongLong() };
+
+        if (!item.owned_ && entry.state() >= AppItemStateE::ReviewRequest && entry.state() <= AppItemStateE::ReviewRejected) {
+            pimpl_->item_form_.review_accept_button->show();
+            pimpl_->item_form_.review_reject_button->show();
+
+            if (entry.state() == AppItemStateE::ReviewRequest) {
+                entry.name_ = build_id.toStdString();
+
+                pimpl_->engine().changeAppItemState(
+                    item.engine_index_,
+                    entry, static_cast<int>(AppItemStateE::ReviewStarted),
+                    [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::Response>& _response_ptr) {
+                    solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
+
+                    pimpl_->engine().fetchItemEntries(
+                        engine_index,
+                        [this, index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+                            //called on another thread - need to move the data onto GUI thread
+                            emit itemEntries(index, _response_ptr);
+                        });
+                }
+                );
+            }
+        }
+        else {
+            pimpl_->item_form_.review_accept_button->hide();
+            pimpl_->item_form_.review_reject_button->hide();
+        }
+
         item.build_id_ = build_id;
         item.data_ptr_.reset();
         pimpl_->engine().acquireBuild(item.engine_index_, item.build_id_.toStdString());
@@ -1206,6 +1242,54 @@ void MainWindow::configureStateChangedSlot(int _index) {
             }
         );
     }
+}
+
+void MainWindow::onReviewAcceptButtonClicked(bool _checked) {
+    using namespace ola::utility;
+    auto index = pimpl_->item_form_.comboBox->currentIndex();
+    AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(index).toULongLong() };
+    
+    entry.name_ = pimpl_->item_form_.comboBox->itemText(index).toStdString();
+    auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
+
+    pimpl_->engine().changeAppItemState(
+        item.engine_index_,
+        entry, static_cast<int>(AppItemStateE::ReviewAccepted),
+        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::Response>& _response_ptr) {
+        solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
+
+        pimpl_->engine().fetchItemEntries(
+            engine_index,
+            [this, index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+                //called on another thread - need to move the data onto GUI thread
+                emit itemEntries(index, _response_ptr);
+            });
+    }
+    );
+}
+
+void MainWindow::onReviewRejectButtonClicked(bool _checked) {
+    using namespace ola::utility;
+    auto index = pimpl_->item_form_.comboBox->currentIndex();
+    AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(index).toULongLong() };
+
+    entry.name_ = pimpl_->item_form_.comboBox->itemText(index).toStdString();
+    auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
+
+    pimpl_->engine().changeAppItemState(
+        item.engine_index_,
+        entry, static_cast<int>(AppItemStateE::ReviewRejected),
+        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::Response>& _response_ptr) {
+        solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
+
+        pimpl_->engine().fetchItemEntries(
+            engine_index,
+            [this, index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+                //called on another thread - need to move the data onto GUI thread
+                emit itemEntries(index, _response_ptr);
+            });
+    }
+    );
 }
 
 } //namespace store

@@ -162,6 +162,8 @@ private slots:
     void onItemDoubleClicked(const QModelIndex&);
     void onAquireButtonToggled(bool _checked);
     void onConfigureButtonClicked(bool _checked);
+    void onReviewAcceptButtonClicked(bool _checked);
+    void onReviewRejectButtonClicked(bool _checked);
     void itemDataSlot(int _index, std::shared_ptr<ola::front::FetchBuildConfigurationResponse> _response_ptr);
     void itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr);
     void itemAcquireSlot(int _index, bool _acquired);
