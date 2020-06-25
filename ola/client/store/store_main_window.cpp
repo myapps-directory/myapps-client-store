@@ -511,6 +511,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->item_form_.review_accept_button->setMaximumHeight(pimpl_->item_form_.comboBox->height() + 6);
     pimpl_->item_form_.review_reject_button->setMaximumHeight(pimpl_->item_form_.comboBox->height() + 6);
     pimpl_->item_form_.configure_button->setMaximumHeight(pimpl_->item_form_.comboBox->height() + 6);
+    pimpl_->item_form_.acquire_button->setStyleSheet("border: 0px");
 
     pimpl_->history_.emplace(
         pimpl_->store_form_.listWidget,
@@ -567,19 +568,23 @@ void MainWindow::showItem(int _index)
     pimpl_->item_form_.acquire_button->setChecked(item.acquired_);
     pimpl_->item_form_.acquire_button->setEnabled(!item.default_);
 
+    bool enable_combo = false;
     if (item.acquired_ && item.owned_) {
-        pimpl_->item_form_.comboBox->setEnabled(true);
+        enable_combo = true;
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired_owned.png"));
     } else if (item.acquired_ || item.default_) {
-        pimpl_->item_form_.comboBox->setEnabled(true);
+        enable_combo = true;
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired.png"));
     } else if (item.owned_) {
-        pimpl_->item_form_.comboBox->setEnabled(false);
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/owned.png"));
     } else {
-        pimpl_->item_form_.comboBox->setEnabled(false);
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/empty.png"));
     }
+
+    pimpl_->item_form_.comboBox->setEnabled(enable_combo);
+    pimpl_->item_form_.configure_button->setEnabled(enable_combo);
+    pimpl_->item_form_.review_accept_button->setEnabled(enable_combo);
+    pimpl_->item_form_.review_reject_button->setEnabled(enable_combo);
 
     pimpl_->engine().fetchItemEntries(
         item.engine_index_,
@@ -857,6 +862,9 @@ void MainWindow::itemAcquireSlot(int _index, bool _acquired)
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/empty.png"));
         }
         pimpl_->item_form_.comboBox->setEnabled(enable_combo);
+        pimpl_->item_form_.configure_button->setEnabled(enable_combo);
+        pimpl_->item_form_.review_accept_button->setEnabled(enable_combo);
+        pimpl_->item_form_.review_reject_button->setEnabled(enable_combo);
         pimpl_->item_form_.comboBox->setCurrentIndex(0);
     }
 }

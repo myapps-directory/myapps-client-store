@@ -18,8 +18,8 @@
     <widget class="QTreeWidget" name="treeWidget">
      <property name="iconSize">
       <size>
-       <width>46</width>
-       <height>46</height>
+       <width>60</width>
+       <height>60</height>
       </size>
      </property>
      <attribute name="headerVisible">
@@ -62,10 +62,16 @@
       </item>
       <item>
        <widget class="QComboBox" name="stateComboBox">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>64</height>
+         </size>
+        </property>
         <property name="iconSize">
          <size>
-          <width>46</width>
-          <height>46</height>
+          <width>60</width>
+          <height>60</height>
          </size>
         </property>
        </widget>
