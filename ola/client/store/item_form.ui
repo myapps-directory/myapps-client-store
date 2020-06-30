@@ -652,13 +652,13 @@
                 </property>
                 <property name="minimumSize">
                  <size>
-                  <width>80</width>
+                  <width>120</width>
                   <height>64</height>
                  </size>
                 </property>
                 <property name="maximumSize">
                  <size>
-                  <width>80</width>
+                  <width>120</width>
                   <height>64</height>
                  </size>
                 </property>
@@ -670,8 +670,8 @@
                 </property>
                 <property name="iconSize">
                  <size>
-                  <width>48</width>
-                  <height>48</height>
+                  <width>120</width>
+                  <height>60</height>
                  </size>
                 </property>
                 <property name="checkable">

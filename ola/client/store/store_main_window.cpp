@@ -569,6 +569,16 @@ void MainWindow::showItem(int _index)
     pimpl_->item_form_.acquire_button->setEnabled(!item.default_);
 
     bool enable_combo = false;
+
+    if (item.acquired_ || item.default_) {
+        enable_combo = true;
+        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_on.png"));
+    }
+    else {
+        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_off.png"));
+    }
+
+#if 0
     if (item.acquired_ && item.owned_) {
         enable_combo = true;
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired_owned.png"));
@@ -580,6 +590,7 @@ void MainWindow::showItem(int _index)
     } else {
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/empty.png"));
     }
+#endif
 
     pimpl_->item_form_.comboBox->setEnabled(enable_combo);
     pimpl_->item_form_.configure_button->setEnabled(enable_combo);
@@ -850,6 +861,14 @@ void MainWindow::itemAcquireSlot(int _index, bool _acquired)
         pimpl_->item_form_.acquire_button->setChecked(_acquired);
         pimpl_->item_form_.acquire_button->setEnabled(!item.default_);
         bool enable_combo = false;
+        if (item.acquired_ || item.default_) {
+            enable_combo = true;
+            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_on.png"));
+        }
+        else {
+            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_off.png"));
+        }
+#if 0
         if (item.acquired_ && item.owned_) {
             enable_combo = true;
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired_owned.png"));
@@ -861,6 +880,7 @@ void MainWindow::itemAcquireSlot(int _index, bool _acquired)
         } else {
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/empty.png"));
         }
+#endif
         pimpl_->item_form_.comboBox->setEnabled(enable_combo);
         pimpl_->item_form_.configure_button->setEnabled(enable_combo);
         pimpl_->item_form_.review_accept_button->setEnabled(enable_combo);
