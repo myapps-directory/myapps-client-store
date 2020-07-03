@@ -51,9 +51,13 @@ struct ListItem {
     bool    acquired_ = false;
     bool    owned_    = false;
     bool    default_  = false;
+    bool    review_ = false;
     std::shared_ptr<ola::front::FetchBuildConfigurationResponse> data_ptr_;
 
-    void paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const;
+    void paint(
+        QPainter* painter, const Sizes& _rszs,
+        const QStyleOptionViewItem& option,
+        const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _review_pix) const;
 };
 
 Q_DECLARE_METATYPE(const ListItem*)
@@ -136,7 +140,7 @@ private:
     const Sizes& rsizes_;
     QPixmap      acquired_pix_;
     QPixmap      owned_pix_;
-    QPixmap      acquired_owned_pix_;
+    QPixmap      review_pix_;
 };
 
 class MainWindow : public QMainWindow {

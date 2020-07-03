@@ -25,6 +25,7 @@ struct ApplicationStub {
     enum struct FlagsE : uint8_t {
         Aquired = 0,
         Owned,
+        ReviewRequest,
         Default,
     };
 
@@ -124,9 +125,15 @@ void Engine::start(Configuration&& _rcfg)
                       std::shared_ptr<front::ListAppsResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                    _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-            for (auto& app_id : _rrecv_msg_ptr->app_vec_) {
-                pimpl_->app_dq_.emplace_back(std::move(app_id.id_), std::move(app_id.unique_));
+            for (auto& app : _rrecv_msg_ptr->app_vec_) {
+                pimpl_->app_dq_.emplace_back(std::move(app.id_), std::move(app.unique_));
                 pimpl_->app_map_[pimpl_->app_dq_.back().app_uid_] = pimpl_->app_dq_.size() - 1;
+                if (app.isFlagSet(ola::utility::AppFlagE::Owned)) {
+                    pimpl_->app_dq_.back().flag(ApplicationStub::FlagsE::Owned);
+                }
+                if (app.isFlagSet(ola::utility::AppFlagE::ReviewRequest)) {
+                    pimpl_->app_dq_.back().flag(ApplicationStub::FlagsE::ReviewRequest);
+                }
             }
             requestAquired(_rsent_msg_ptr);
         } else if (!_rrecv_msg_ptr) {
@@ -162,7 +169,8 @@ void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
                     pimpl_->app_dq_[it->second].flag(ApplicationStub::FlagsE::Aquired);
                 }
             }
-            requestOwned(_rsent_msg_ptr);
+            //requestOwned(_rsent_msg_ptr);
+            requestDefault(_rsent_msg_ptr);
         } else if (!_rrecv_msg_ptr) {
             solid_log(logger, Info, "no ListAppsResponse: " << _rerror.message());
         } else {
@@ -171,7 +179,8 @@ void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
     };
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
-
+#if 0
+//not needed - we get this information from above ListAppsResponse
 void Engine::requestOwned(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
 {
     auto req_ptr = std::move(_rreq_msg);
@@ -199,6 +208,7 @@ void Engine::requestOwned(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
     };
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
+#endif
 
 void Engine::requestDefault(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
 {

@@ -128,7 +128,7 @@ struct MainWindow::Data {
     void configureMediaPrepareStateComboBox(const ola::utility::AppItemEntry& _build);
 };
 
-void ListItem::paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const
+void ListItem::paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _review_pix) const
 {
     painter->setRenderHint(QPainter::Antialiasing, true);
 
@@ -171,13 +171,18 @@ void ListItem::paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionVi
         layout.endLayout();
     }
     {
-        const int pix_x = _rszs.image_width_ - 32;
-        if (acquired_ && owned_) {
-            painter->drawPixmap(QRect(pix_x, 0, 32, 32), _acquired_owned_pix);
-        } else if (acquired_) {
+        int pix_x = _rszs.image_width_ - 32;
+        if (acquired_ || default_) {
             painter->drawPixmap(QRect(pix_x, 0, 32, 32), _acquired_pix);
-        } else if (owned_) {
+            pix_x -= 32;
+        }
+        if (owned_) {
             painter->drawPixmap(QRect(pix_x, 0, 32, 32), _owned_pix);
+            pix_x -= 32;
+        }
+        if (review_) {
+            painter->drawPixmap(QRect(pix_x, 0, 32, 32), _review_pix);
+            pix_x -= 32;
         }
     }
 
@@ -362,7 +367,7 @@ ItemDelegate::ItemDelegate(const Sizes& _rsizes)
     : rsizes_(_rsizes)
     , acquired_pix_(":/images/acquired.png")
     , owned_pix_(":/images/owned.png")
-    , acquired_owned_pix_(":/images/acquired_owned.png")
+    , review_pix_(":/images/review.png")
 {
 }
 
@@ -374,7 +379,7 @@ void ItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
 
         painter->save();
 
-        pitem->paint(painter, rsizes_, option, acquired_pix_, owned_pix_, acquired_owned_pix_);
+        pitem->paint(painter, rsizes_, option, acquired_pix_, owned_pix_, review_pix_);
 
         painter->restore();
     } else {
