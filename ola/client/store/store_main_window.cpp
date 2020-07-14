@@ -4,6 +4,7 @@
 #include "ui_item_form.h"
 #include "ui_list_form.h"
 #include "ui_store_form.h"
+#include "ui_configure_form.h"
 #include <QAction>
 #include <QApplication>
 #include <QComboBox>
@@ -19,6 +20,7 @@
 #include <stack>
 #include <vector>
 
+#include "solid/system/cstring.hpp"
 #include "solid/system/log.hpp"
 
 using namespace std;
@@ -46,6 +48,7 @@ struct MainWindow::Data {
     Ui::ItemForm    item_form_;
     Ui::AccountForm account_form_;
     Ui::AboutForm   about_form_;
+    Ui::ConfigureForm   configure_form_;
     int             current_item_ = -1;
     QAction         back_action_;
     QAction         home_action_;
@@ -62,6 +65,10 @@ struct MainWindow::Data {
     Sizes           sizes_{scale_x_, scale_y_, g_image_width, g_image_height, g_item_width, g_item_height};
     ItemDelegate    list_delegate_{sizes_};
     ListModel       list_model_;
+    QTreeWidgetItem* pcurrent_build_parent_ = nullptr;
+    QTreeWidgetItem* pcurrent_media_parent_ = nullptr;
+    QString          config_current_build_;
+    QString          config_current_media_;
 
     Data(Engine& _rengine, MainWindow* _pw)
         : list_model_(_rengine, sizes_)
@@ -96,6 +103,9 @@ struct MainWindow::Data {
         if (store_form_.aboutWidget != _pw) {
             store_form_.aboutWidget->hide();
         }
+        if (store_form_.configureWidget != _pw) {
+            store_form_.configureWidget->hide();
+        }
         _pw->show();
     }
 
@@ -109,9 +119,18 @@ struct MainWindow::Data {
         }
         return history_.top().second;
     }
+
+    void setComboIndex(int _item_index) {
+    
+    }
+
+    void configureBuildPrepareStateComboBox(const ola::utility::AppItemEntry& _build);
+    void configureMediaPrepareStateComboBox(const ola::utility::AppItemEntry& _build);
 };
 
-void ListItem::paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const
+void ListItem::paint(
+    QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option,
+    const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _review_pix) const
 {
     painter->setRenderHint(QPainter::Antialiasing, true);
 
@@ -154,13 +173,18 @@ void ListItem::paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionVi
         layout.endLayout();
     }
     {
-        const int pix_x = _rszs.image_width_ - 32;
-        if (acquired_ && owned_) {
-            painter->drawPixmap(QRect(pix_x, 0, 32, 32), _acquired_owned_pix);
-        } else if (acquired_) {
+        int pix_x = _rszs.image_width_ - 32;
+        if (has_application_flag(flags_, ApplicationFlagE::Aquired) || has_application_flag(flags_, ApplicationFlagE::Default)) {
             painter->drawPixmap(QRect(pix_x, 0, 32, 32), _acquired_pix);
-        } else if (owned_) {
+            pix_x -= 32;
+        }
+        if (has_application_flag(flags_, ApplicationFlagE::Owned)) {
             painter->drawPixmap(QRect(pix_x, 0, 32, 32), _owned_pix);
+            pix_x -= 32;
+        }
+        if (has_application_flag(flags_, ApplicationFlagE::ReviewRequest)) {
+            painter->drawPixmap(QRect(pix_x, 0, 32, 32), _review_pix);
+            pix_x -= 32;
         }
     }
 
@@ -236,10 +260,9 @@ void ListModel::prepareAndPushItem(
     const std::string&  _name,
     const std::string&  _company,
     const std::string&  _brief,
+    const std::string&  _build_id,
     const vector<char>& _image,
-    const bool          _acquired,
-    const bool          _owned,
-    const bool          _default)
+    const uint32_t      _flags)
 {
     //called on pool thread
     ListItem item;
@@ -247,9 +270,8 @@ void ListModel::prepareAndPushItem(
     item.brief_        = QString::fromStdString(_brief);
     item.company_      = QString::fromStdString(_company);
     item.name_         = QString::fromStdString(_name);
-    item.owned_        = _owned;
-    item.acquired_     = _acquired;
-    item.default_      = _default;
+    item.build_id_     = QString::fromStdString(_build_id);
+    item.flags_        = _flags;
     QImage img;
     if (img.loadFromData(reinterpret_cast<const uchar*>(_image.data()), _image.size())) {
         item.image_ = img.scaled(QSize(rsizes_.image_width_, rsizes_.image_height_), Qt::KeepAspectRatio, Qt::SmoothTransformation);
@@ -343,7 +365,7 @@ ItemDelegate::ItemDelegate(const Sizes& _rsizes)
     : rsizes_(_rsizes)
     , acquired_pix_(":/images/acquired.png")
     , owned_pix_(":/images/owned.png")
-    , acquired_owned_pix_(":/images/acquired_owned.png")
+    , review_pix_(":/images/review.png")
 {
 }
 
@@ -355,7 +377,7 @@ void ItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
 
         painter->save();
 
-        pitem->paint(painter, rsizes_, option, acquired_pix_, owned_pix_, acquired_owned_pix_);
+        pitem->paint(painter, rsizes_, option, acquired_pix_, owned_pix_, review_pix_);
 
         painter->restore();
     } else {
@@ -373,6 +395,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     , pimpl_(solid::make_pimpl<Data>(_rengine, this))
 {
     qRegisterMetaType<VectorPairStringT>("VectorPairStringT");
+    qRegisterMetaType<std::shared_ptr<ola::front::FetchBuildConfigurationResponse>>("std::shared_ptr<ola::front::FetchBuildConfigurationResponse>");
+    qRegisterMetaType<std::shared_ptr<ola::front::FetchAppResponse>>("std::shared_ptr<ola::front::FetchAppResponse>");
 
     setWindowFlags(windowFlags() & (~Qt::WindowMaximizeButtonHint));
 
@@ -380,6 +404,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->list_form_.setupUi(pimpl_->store_form_.listWidget);
     pimpl_->item_form_.setupUi(pimpl_->store_form_.itemWidget);
     pimpl_->about_form_.setupUi(pimpl_->store_form_.aboutWidget);
+    pimpl_->configure_form_.setupUi(pimpl_->store_form_.configureWidget);
 
     pimpl_->account_form_.setupUi(pimpl_->store_form_.accountWidget);
     pimpl_->list_form_.listView->viewport()->setAttribute(Qt::WA_Hover, true);
@@ -416,9 +441,10 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     connect(pimpl_->list_form_.listView, SIGNAL(doubleClicked(const QModelIndex&)), this, SLOT(onItemDoubleClicked(const QModelIndex&)));
     connect(pimpl_->item_form_.acquire_button, SIGNAL(toggled(bool)), this, SLOT(onAquireButtonToggled(bool)));
 
-    connect(this, SIGNAL(itemData(int, QString, QString)), this, SLOT(itemDataSlot(int, const QString&, const QString&)), Qt::QueuedConnection);
+    connect(this, SIGNAL(itemData(int, std::shared_ptr<ola::front::FetchBuildConfigurationResponse>)), this, SLOT(itemDataSlot(int, std::shared_ptr<ola::front::FetchBuildConfigurationResponse>)), Qt::QueuedConnection);
 
-    connect(this, SIGNAL(itemMedia(int, VectorPairStringT)), this, SLOT(itemMediaSlot(int, const VectorPairStringT&)), Qt::QueuedConnection);
+    connect(this, SIGNAL(itemEntries(int, std::shared_ptr<ola::front::FetchAppResponse>)), this, SLOT(itemEntriesSlot(int, std::shared_ptr<ola::front::FetchAppResponse>)), Qt::QueuedConnection);
+
     connect(this, SIGNAL(itemAcquire(int, bool)), this, SLOT(itemAcquireSlot(int, bool)), Qt::QueuedConnection);
 
     connect(pimpl_->item_form_.media_list_widget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(imageDoubleClicked(QListWidgetItem*)));
@@ -427,6 +453,15 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     connect(&pimpl_->account_action_, &QAction::triggered, this, &MainWindow::goAccountSlot);
     connect(&pimpl_->back_action_, &QAction::triggered, this, &MainWindow::goBackSlot);
     connect(&pimpl_->about_action_, &QAction::triggered, this, &MainWindow::goAboutSlot);
+    connect(pimpl_->item_form_.configure_button, SIGNAL(clicked(bool)), this, SLOT(onConfigureButtonClicked(bool)));
+    connect(pimpl_->item_form_.review_accept_button, SIGNAL(clicked(bool)), this, SLOT(onReviewAcceptButtonClicked(bool)));
+    connect(pimpl_->item_form_.review_reject_button, SIGNAL(clicked(bool)), this, SLOT(onReviewRejectButtonClicked(bool)));
+
+    connect(pimpl_->configure_form_.treeWidget, SIGNAL(currentItemChanged(QTreeWidgetItem *, QTreeWidgetItem *)), this, SLOT(configureItemChangedSlot(QTreeWidgetItem *, QTreeWidgetItem *)));
+    
+    connect(pimpl_->item_form_.comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::buildChangedSlot);
+
+    connect(pimpl_->configure_form_.stateComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::configureStateChangedSlot);
 
     pimpl_->tool_bar_.setMovable(false);
     pimpl_->tool_bar_.setFixedHeight(38 * pimpl_->scale_y_);
@@ -467,6 +502,20 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
 
     resize(QSize((pimpl_->sizes_.item_width_ * item_column_count + 60), (pimpl_->sizes_.item_height_ * item_row_count + 133)));
 
+    pimpl_->item_form_.review_accept_button->setIcon(QIcon(":/images/review_accept.png"));
+    pimpl_->item_form_.review_reject_button->setIcon(QIcon(":/images/review_reject.png"));
+    pimpl_->item_form_.configure_button->setIcon(QIcon(":/images/configure.png"));
+
+    pimpl_->item_form_.comboBox->setPlaceholderText("Acquire");
+
+    pimpl_->item_form_.comboBox->clear();
+
+    //pimpl_->item_form_.comboBox->setMaximumHeight(pimpl_->item_form_.review_accept_button->height() - 2);
+    pimpl_->item_form_.review_accept_button->setMaximumHeight(pimpl_->item_form_.comboBox->height() + 6);
+    pimpl_->item_form_.review_reject_button->setMaximumHeight(pimpl_->item_form_.comboBox->height() + 6);
+    pimpl_->item_form_.configure_button->setMaximumHeight(pimpl_->item_form_.comboBox->height() + 6);
+    pimpl_->item_form_.acquire_button->setStyleSheet("border: 0px");
+
     pimpl_->history_.emplace(
         pimpl_->store_form_.listWidget,
         [this]() {
@@ -502,7 +551,12 @@ void MainWindow::showItem(int _index)
 {
     const QSize img_size{pimpl_->sizes_.image_width_, pimpl_->sizes_.image_height_};
 
+    if (pimpl_->current_item_ == _index) return;
+
     pimpl_->current_item_ = _index;
+    pimpl_->config_current_build_.clear();
+    pimpl_->config_current_media_.clear();
+
     auto& item            = pimpl_->list_model_.item(pimpl_->current_item_);
     pimpl_->item_form_.frame->setFixedHeight(pimpl_->sizes_.image_height_);
     pimpl_->item_form_.image_label->setFixedSize(img_size);
@@ -514,77 +568,326 @@ void MainWindow::showItem(int _index)
     pimpl_->item_form_.media_list_widget->hide();
     pimpl_->item_form_.media_list_widget->clear();
 
-    pimpl_->item_form_.acquire_button->setChecked(item.acquired_);
-    pimpl_->item_form_.acquire_button->setEnabled(!item.default_);
+    pimpl_->item_form_.acquire_button->setChecked(has_application_flag(item.flags_, ApplicationFlagE::Aquired));
+    pimpl_->item_form_.acquire_button->setEnabled(!has_application_flag(item.flags_, ApplicationFlagE::Default));
 
+    bool enable_combo = false;
+
+    if (has_application_flag(item.flags_, ApplicationFlagE::Aquired) || has_application_flag(item.flags_, ApplicationFlagE::Default)) {
+        enable_combo = true;
+        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_on.png"));
+    }
+    else {
+        pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_off.png"));
+    }
+
+#if 0
     if (item.acquired_ && item.owned_) {
+        enable_combo = true;
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired_owned.png"));
     } else if (item.acquired_ || item.default_) {
+        enable_combo = true;
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired.png"));
     } else if (item.owned_) {
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/owned.png"));
     } else {
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/empty.png"));
     }
+#endif
 
-    pimpl_->engine().fetchItemData(
+    pimpl_->item_form_.comboBox->setEnabled(enable_combo);
+    pimpl_->item_form_.review_accept_button->setEnabled(enable_combo);
+    pimpl_->item_form_.review_reject_button->setEnabled(enable_combo);
+
+    pimpl_->engine().fetchItemEntries(
         item.engine_index_,
-        [this, index = _index](const std::string& _description, const std::string& _release) {
+        [this, index = _index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
             //called on another thread - need to move the data onto GUI thread
-            emit itemData(index, QString::fromStdString(_description), QString::fromStdString(_release));
+            emit itemEntries(index, _response_ptr);
         });
-    if (item.media_vec_.empty()) {
-        pimpl_->engine().fetchItemMedia(
-            item.engine_index_,
-            [this, index = _index](const std::vector<std::pair<std::string, std::string>>& _media_vec) {
-                //called on another thread - need to move the data onto GUI thread
-                QVector<QPair<QString, QString>> media_vec;
+}
 
-                for (auto& m : _media_vec) {
-                    media_vec.append(QPair<QString, QString>(QString::fromStdString(m.first), QString::fromStdString(m.second)));
+void MainWindow::itemDataSlot(int _index, std::shared_ptr<ola::front::FetchBuildConfigurationResponse> _response_ptr)
+{
+    if (_response_ptr && _response_ptr->error_ == 0) {
+        auto& item = pimpl_->list_model_.item(_index);
+        item.data_ptr_ = std::move(_response_ptr);
+
+        //TODO: ugly, order for items is set in 
+        //store engine and used here
+        item.name_ = QString::fromStdString(item.data_ptr_->configuration_.property_vec_[0].second);
+        item.company_ = QString::fromStdString(item.data_ptr_->configuration_.property_vec_[1].second);
+        item.brief_ = QString::fromStdString(item.data_ptr_->configuration_.property_vec_[2].second);
+        pimpl_->item_form_.name_label->setText(item.name_);
+        pimpl_->item_form_.company_label->setText(item.company_);
+        pimpl_->item_form_.brief_label->setText(item.brief_);
+        pimpl_->item_form_.description_label->setText(QString::fromStdString(item.data_ptr_->configuration_.property_vec_[3].second));
+        pimpl_->item_form_.release_label->setText(QString::fromStdString(item.data_ptr_->configuration_.property_vec_[4].second));
+
+        QImage img;
+        if (img.loadFromData(reinterpret_cast<const uchar*>(item.data_ptr_->image_blob_.data()), item.data_ptr_->image_blob_.size())) {
+            item.image_ = img.scaled(QSize(pimpl_->sizes_.image_width_, pimpl_->sizes_.image_height_), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        }
+
+        pimpl_->item_form_.image_label->setPixmap(QPixmap::fromImage(item.image_));
+
+        showMediaThumbnails(_index);
+    }
+}
+
+const char* build_status_to_image_name(const ola::utility::AppItemStateE _status)
+{
+    using AppItemStateE = ola::utility::AppItemStateE;
+    switch (_status) {
+    case AppItemStateE::Invalid:
+        return ":/images/none.png";
+    case AppItemStateE::Trash:
+        return ":/images/trash.png";
+    case AppItemStateE::PrivateAlpha:
+        return ":/images/private_alpha.png";
+    case AppItemStateE::ReviewRequest:
+        return ":/images/review_requested.png";
+    case AppItemStateE::ReviewStarted:
+        return ":/images/review_started.png";
+    case AppItemStateE::ReviewAccepted:
+        return ":/images/review_accepted.png";
+    case AppItemStateE::ReviewRejected:
+        return ":/images/review_rejected.png";
+    case AppItemStateE::PublicAlpha:
+        return ":/images/public_alpha.png";
+    case AppItemStateE::PublicBeta:
+        return ":/images/public_beta.png";
+    case AppItemStateE::PublicRelease:
+        return ":/images/public_release.png";
+    default:
+        return "";
+    }
+}
+
+void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr){
+    using namespace ola::utility;
+
+    if (!_response_ptr) return;
+    if (_response_ptr->error_ != 0) {
+        solid_log(logger, Error, "FetchAppResponse error: "<< _response_ptr->error_<<" message: "<< _response_ptr->message_);
+        if (_response_ptr->item_vec_.empty()) {
+            return;
+        }
+    }
+    if (_index != pimpl_->current_item_) return;
+
+    sort(
+        _response_ptr->item_vec_.begin(),
+        _response_ptr->item_vec_.end(),
+        [](const AppItemEntry& _e1, const AppItemEntry& _e2) {
+            if (_e1.type() < _e2.type()) {
+                return true;
+            }
+            else if (_e1.type() > _e2.type()){
+                return false;
+            }
+            else if (_e1.state() > _e2.state()) {
+                return true;
+            }
+            else if (_e1.state() < _e2.state()) {
+                return false;
+            }
+            else {
+                return solid::cstring::cmp(_e1.name_.c_str(), _e2.name_.c_str()) > 0;
+            }
+        }
+    );
+
+    auto& item = pimpl_->list_model_.item(_index);
+
+    pimpl_->item_form_.comboBox->clear();
+
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicRelease)), tr("Latest Available"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicRelease)), tr("Latest Public Release"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicBeta)), tr("Latest Public Beta"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicAlpha)), tr("Latest Public Alpha"));
+    pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Invalid)), tr("Hide"));
+
+    if (has_application_flag(item.flags_, ApplicationFlagE::Owned)) {
+        pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PrivateAlpha)), tr("Private Alpha"));
+        pimpl_->item_form_.configure_button->show();
+    }
+    else {
+        pimpl_->item_form_.configure_button->hide();
+    }
+
+    pimpl_->item_form_.review_accept_button->hide();
+    pimpl_->item_form_.review_reject_button->hide();
+
+    bool found_any_build = false;
+    for (const auto& e : _response_ptr->item_vec_)
+    {
+        if (e.type() == AppItemTypeE::Build) {
+            if (e.state() != AppItemStateE::Trash) {
+                found_any_build = true;
+                QString name = QString::fromStdString(e.name_);
+                pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(e.state())), name, e.value());
+            }
+        }
+    }
+
+    if (found_any_build) {
+        int index = -1;
+        if (item.build_id_.isEmpty()) {
+            index = 0;
+        }
+        else if (item.build_id_ == app_item_public_release) {
+            index = 1;
+        }
+        else if (item.build_id_ == app_item_public_beta) {
+            index = 2;
+        }
+        else if (item.build_id_ == app_item_public_alpha) {
+            index = 3;
+        }
+        else if (item.build_id_ == app_item_invalid) {
+            index = 4;
+        }
+        else if (has_application_flag(item.flags_, ApplicationFlagE::Owned) && item.build_id_ == ola::utility::app_item_private_alpha) {
+            index = 5;
+        }
+        else {
+            for (int i = 5; i < pimpl_->item_form_.comboBox->count(); ++i) {
+                if (item.build_id_ == pimpl_->item_form_.comboBox->itemText(i)) {
+                    index = i;
+                    AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(i).toULongLong()};
+
+                    if (!has_application_flag(item.flags_, ApplicationFlagE::Owned) && entry.state() >= AppItemStateE::ReviewRequest && entry.state() <= AppItemStateE::ReviewRejected) {
+                        pimpl_->item_form_.review_accept_button->show();
+                        pimpl_->item_form_.review_reject_button->show();
+                    }
+                    break;
                 }
+            }
+            if (index < 0) {
+                index = 0;
+            }
 
-                emit itemMedia(index, media_vec);
-            });
-    } else {
-        showMediaThumbnails(_index);
+        }
+
+        pimpl_->item_form_.comboBox->setCurrentIndex(index);
+    }
+
+    if (has_application_flag(item.flags_, ApplicationFlagE::Owned)) {
+        prepareConfigureForm(_index, _response_ptr);
     }
 }
 
-void MainWindow::itemDataSlot(int _index, const QString& _description, const QString& _release)
+void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr)
 {
-    pimpl_->item_form_.description_label->setText(_description);
-    pimpl_->item_form_.release_label->setText(_release);
-}
+    pimpl_->configure_form_.treeWidget->setColumnCount(1);
+    pimpl_->configure_form_.treeWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-void MainWindow::itemMediaSlot(int _index, const VectorPairStringT& _rmedia_vec)
-{
-    if (!_rmedia_vec.empty()) {
-        auto& item      = pimpl_->list_model_.item(_index);
-        item.media_vec_ = _rmedia_vec;
-        showMediaThumbnails(_index);
+    //pimpl_->configure_form_.treeWidget->clear();
+
+    QList<QTreeWidgetItem*> build_items;
+    QList<QTreeWidgetItem*> media_items;
+
+    if (pimpl_->pcurrent_build_parent_ == nullptr) {
+        pimpl_->pcurrent_build_parent_ = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList{ tr("Builds") });
+        pimpl_->pcurrent_media_parent_ = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList{ tr("Media") });
     }
+    else {
+        foreach(auto i, pimpl_->pcurrent_build_parent_->takeChildren()) delete i;
+        foreach(auto i, pimpl_->pcurrent_media_parent_->takeChildren()) delete i;
+    }
+
+    for (const auto& e : _response_ptr->item_vec_)
+    {
+        QString name = QString::fromStdString(e.name_);
+        auto pitem = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList(name));
+        pitem->setIcon(0, QIcon(build_status_to_image_name(e.state())));
+        pitem->setData(0, Qt::UserRole, e.value());
+        if (e.type() == ola::utility::AppItemTypeE::Build) {
+            build_items.append(pitem);
+        }
+        else if (e.type() == ola::utility::AppItemTypeE::Media) {
+            media_items.append(pitem);
+        }
+    }
+
+    pimpl_->pcurrent_build_parent_->addChildren(build_items);
+    pimpl_->pcurrent_media_parent_->addChildren(media_items);
+
+    pimpl_->pcurrent_build_parent_->setFlags(pimpl_->pcurrent_build_parent_->flags() & (~Qt::ItemIsSelectable));
+    pimpl_->configure_form_.treeWidget->addTopLevelItem(pimpl_->pcurrent_build_parent_);
+    pimpl_->pcurrent_media_parent_->setFlags(pimpl_->pcurrent_media_parent_->flags() & (~Qt::ItemIsSelectable));
+    pimpl_->configure_form_.treeWidget->addTopLevelItem(pimpl_->pcurrent_media_parent_);
+
+    pimpl_->configure_form_.stateComboBox->hide();
+
+
+    if (!pimpl_->config_current_build_.isEmpty()) {
+        bool found = false;
+        foreach(auto i, pimpl_->configure_form_.treeWidget->findItems(pimpl_->config_current_build_, Qt::MatchFixedString | Qt::MatchRecursive)) {
+            if (i->parent() == pimpl_->pcurrent_build_parent_) {
+                found = true;
+                pimpl_->configure_form_.treeWidget->setCurrentItem(i);
+                break;
+            }
+        }
+
+        if (!found) {
+            pimpl_->config_current_build_.clear();
+        }
+    }else if (!pimpl_->config_current_media_.isEmpty()) {
+        bool found = false;
+        foreach(auto i, pimpl_->configure_form_.treeWidget->findItems(pimpl_->config_current_media_, Qt::MatchFixedString | Qt::MatchRecursive)) {
+            if (i->parent() == pimpl_->pcurrent_media_parent_) {
+                found = true;
+                pimpl_->configure_form_.treeWidget->setCurrentItem(i);
+                break;
+            }
+        }
+
+        if (!found) {
+            pimpl_->config_current_build_.clear();
+        }
+    }
+
+    pimpl_->configure_form_.treeWidget->expandAll();
 }
 
 void MainWindow::itemAcquireSlot(int _index, bool _acquired)
 {
     auto& item = pimpl_->list_model_.item(_index);
 
-    item.acquired_ = _acquired;
+
+    set_application_flag(item.flags_, ApplicationFlagE::Aquired, _acquired);
 
     if (_index == pimpl_->current_item_) {
         pimpl_->item_form_.acquire_button->setChecked(_acquired);
-        pimpl_->item_form_.acquire_button->setEnabled(!item.default_);
-
+        pimpl_->item_form_.acquire_button->setEnabled(!has_application_flag(item.flags_, ApplicationFlagE::Default));
+        bool enable_combo = false;
+        if (has_application_flag(item.flags_, ApplicationFlagE::Aquired) || has_application_flag(item.flags_, ApplicationFlagE::Default)) {
+            enable_combo = true;
+            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_on.png"));
+        }
+        else {
+            pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_off.png"));
+        }
+#if 0
         if (item.acquired_ && item.owned_) {
+            enable_combo = true;
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired_owned.png"));
         } else if (item.acquired_ || item.default_) {
+            enable_combo = true;
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquired.png"));
         } else if (item.owned_) {
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/owned.png"));
         } else {
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/empty.png"));
         }
+#endif
+        pimpl_->item_form_.comboBox->setEnabled(enable_combo);
+        pimpl_->item_form_.review_accept_button->setEnabled(enable_combo);
+        pimpl_->item_form_.review_reject_button->setEnabled(enable_combo);
+        pimpl_->item_form_.comboBox->setCurrentIndex(0);
     }
 }
 namespace {
@@ -602,24 +905,24 @@ void MainWindow::showMediaThumbnails(int _index)
 {
     auto& item = pimpl_->list_model_.item(_index);
 
-    if (item.media_vec_.size()) {
+    if (item.data_ptr_ && item.data_ptr_->configuration_.media_.entry_vec_.size()) {
         const QSize thumb_size{pimpl_->sizes_.image_width_, pimpl_->sizes_.image_height_};
-
+        pimpl_->item_form_.media_list_widget->clear();
         pimpl_->item_form_.media_list_widget->setIconSize(thumb_size);
         pimpl_->item_form_.media_list_widget->setGridSize(thumb_size);
         pimpl_->item_form_.media_list_widget->setMinimumHeight(pimpl_->sizes_.image_height_ + 20);
         bool   has_image = false;
         size_t index     = 0;
-        for (const auto& media : item.media_vec_) {
+        for (const auto& entry : item.data_ptr_->configuration_.media_.entry_vec_) {
             QImage image;
-            if (image.load(media.first)) {
+            if (image.load(QString::fromStdString(entry.thumbnail_path_))) {
                 auto* pitem = new ThumbnailItem(index);
                 pitem->setData(Qt::DecorationRole, QPixmap::fromImage(image.scaled(thumb_size, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
                 pitem->setSizeHint(thumb_size + QSize(4, 4));
                 pimpl_->item_form_.media_list_widget->addItem(pitem);
                 has_image = true;
             } else {
-                solid_log(logger, Warning, "Failed loading media: " << media.first.toStdString());
+                solid_log(logger, Warning, "Failed loading media: " << entry.thumbnail_path_);
             }
             ++index;
         }
@@ -655,7 +958,7 @@ void MainWindow::onAquireButtonToggled(bool _checked)
 {
     const auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
 
-    if (!item.default_) {
+    if (!has_application_flag(item.flags_, ApplicationFlagE::Default)) {
         pimpl_->engine().acquireItem(
             item.engine_index_,
             _checked,
@@ -663,6 +966,14 @@ void MainWindow::onAquireButtonToggled(bool _checked)
             emit itemAcquire(index, _acquired);
         });
     }
+}
+
+void MainWindow::onConfigureButtonClicked(bool _checked) {
+    pimpl_->historyPush(
+        nullptr,
+        [this]() {
+            pimpl_->showWidget(pimpl_->store_form_.configureWidget);
+    })();
 }
 
 void MainWindow::imageDoubleClicked(QListWidgetItem* _item)
@@ -673,7 +984,7 @@ void MainWindow::imageDoubleClicked(QListWidgetItem* _item)
         nullptr,
         [this, item_index = pimpl_->current_item_, image_index = pthumb->index_]() {
             const auto&    item = pimpl_->list_model_.item(item_index);
-            const QString& path = item.media_vec_[image_index].second;
+            const QString  path = QString::fromStdString(item.data_ptr_->configuration_.media_.entry_vec_[image_index].path_);
 
             if (pimpl_->current_image_.load(path)) {
                 const int w = pimpl_->store_form_.centralwidget->width();
@@ -729,6 +1040,286 @@ void MainWindow::goAboutSlot(bool)
         [this]() {
             pimpl_->showWidget(pimpl_->store_form_.aboutWidget);
         })();
+}
+
+void MainWindow::buildChangedSlot(int _index)
+{
+    using namespace ola::utility;
+
+    if (pimpl_->item_form_.comboBox->count() == 0) {
+        return;
+    }
+
+    auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
+    QString build_id;
+    if (_index == 0) {
+    }
+    else if (_index == 1) {
+        build_id = app_item_public_release;
+    }
+    else if (_index == 2) {
+        build_id = app_item_public_beta;
+    }
+    else if (_index == 3) {
+        build_id = app_item_public_alpha;
+    }
+    else if (_index == 4) {
+        build_id = app_item_invalid;
+    }
+    else if (has_application_flag(item.flags_, ApplicationFlagE::Owned) && _index == 5) {
+        build_id = app_item_private_alpha;
+    }
+    else {
+        build_id = pimpl_->item_form_.comboBox->itemText(_index);
+    }
+    
+    if (build_id != item.build_id_) {
+        AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(_index).toULongLong() };
+
+        if (!has_application_flag(item.flags_, ApplicationFlagE::Owned) && entry.state() >= AppItemStateE::ReviewRequest && entry.state() <= AppItemStateE::ReviewRejected) {
+            pimpl_->item_form_.review_accept_button->show();
+            pimpl_->item_form_.review_reject_button->show();
+
+            if (entry.state() == AppItemStateE::ReviewRequest) {
+                entry.name_ = build_id.toStdString();
+
+                pimpl_->engine().changeAppItemState(
+                    item.engine_index_,
+                    entry, static_cast<int>(AppItemStateE::ReviewStarted),
+                    [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::Response>& _response_ptr) {
+                    solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
+
+                    pimpl_->engine().fetchItemEntries(
+                        engine_index,
+                        [this, index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+                            //called on another thread - need to move the data onto GUI thread
+                            emit itemEntries(index, _response_ptr);
+                        });
+                }
+                );
+            }
+        }
+        else {
+            pimpl_->item_form_.review_accept_button->hide();
+            pimpl_->item_form_.review_reject_button->hide();
+        }
+
+        item.build_id_ = build_id;
+        item.data_ptr_.reset();
+        pimpl_->engine().acquireBuild(item.engine_index_, item.build_id_.toStdString());
+    }
+
+    if (!item.data_ptr_) {
+        string build_id = item.build_id_.toStdString();
+        if (build_id == ola::utility::app_item_invalid) {
+            build_id.clear();
+        }
+        pimpl_->engine().fetchItemData(
+            item.engine_index_,
+            build_id,
+            [this, index = pimpl_->current_item_](std::shared_ptr<ola::front::FetchBuildConfigurationResponse>& _response_ptr) {
+            //called on another thread - need to move the data onto GUI thread
+            emit itemData(index, _response_ptr);
+        });
+    }
+    else {
+        showMediaThumbnails(pimpl_->current_item_);
+    }
+}
+
+void MainWindow::configureItemChangedSlot(QTreeWidgetItem* _pcurrent, QTreeWidgetItem* _pprevious)
+{
+    if (_pcurrent == nullptr) return;
+
+    if (_pcurrent->parent() == pimpl_->pcurrent_build_parent_) {
+        pimpl_->config_current_build_ = _pcurrent->text(0);
+        pimpl_->configure_form_.stateComboBox->show();
+        
+        const ola::utility::AppItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
+
+        pimpl_->configureBuildPrepareStateComboBox(entry);
+    }
+    else if (_pcurrent->parent() == pimpl_->pcurrent_media_parent_)
+    {
+        pimpl_->config_current_media_ = _pcurrent->text(0);
+        pimpl_->configure_form_.stateComboBox->show();
+
+        const ola::utility::AppItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
+
+        pimpl_->configureMediaPrepareStateComboBox(entry);
+    }
+    else {
+        pimpl_->configure_form_.stateComboBox->hide();
+    }
+
+    pimpl_->configure_form_.frame->update();
+}
+
+void MainWindow::Data::configureMediaPrepareStateComboBox(const ola::utility::AppItemEntry& _item) {
+    using namespace ola::utility;
+    configure_form_.stateComboBox->clear();
+    configure_form_.stateComboBox->setPlaceholderText(tr("Invalid"));
+    configure_form_.stateComboBox->setCurrentIndex(-1);
+
+    configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Trash)), tr("Trash"), static_cast<int>(AppItemStateE::Trash));
+    configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicRelease)), tr("Public Release"), static_cast<int>(AppItemStateE::PublicRelease));
+
+    switch (_item.state()) {
+    case AppItemStateE::Invalid:break;
+    case AppItemStateE::Trash:
+        configure_form_.stateComboBox->setCurrentIndex(0);
+        break;
+    case AppItemStateE::PublicRelease:
+        configure_form_.stateComboBox->setCurrentIndex(1);
+        break;
+    default:
+        break;
+    }
+}
+
+void MainWindow::Data::configureBuildPrepareStateComboBox(const ola::utility::AppItemEntry& _item) {
+    using namespace ola::utility;
+    configure_form_.stateComboBox->clear();
+    configure_form_.stateComboBox->setPlaceholderText(tr("Invalid"));
+    configure_form_.stateComboBox->setCurrentIndex(-1);
+
+    if (_item.isFlagSet(AppItemFlagE::ReviewAccepted)) {
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Trash)), tr("Trash"), static_cast<int>(AppItemStateE::Trash));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(AppItemStateE::PrivateAlpha));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicAlpha)), tr("Public Alpha"), static_cast<int>(AppItemStateE::PublicAlpha));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicBeta)), tr("Public Beta"), static_cast<int>(AppItemStateE::PublicBeta));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicRelease)), tr("Public Release"), static_cast<int>(AppItemStateE::PublicRelease));
+    }
+    else if(_item.isFlagSet(AppItemFlagE::ReviewRejected)) {
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Trash)), tr("Trash"), static_cast<int>(AppItemStateE::Trash));
+        configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(AppItemStateE::PrivateAlpha));
+    }
+    else {
+        if (_item.state() != AppItemStateE::ReviewStarted) {
+            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Trash)), tr("Trash"), static_cast<int>(AppItemStateE::Trash));
+            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(AppItemStateE::PrivateAlpha));
+            configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::ReviewRequest)), tr("Review Request"), static_cast<int>(AppItemStateE::ReviewRequest));
+        }
+    }
+
+    switch (_item.state()) {
+    case AppItemStateE::Invalid:break;
+    case AppItemStateE::Trash:
+        configure_form_.stateComboBox->setCurrentIndex(0);
+        break;
+    case AppItemStateE::PrivateAlpha:
+        configure_form_.stateComboBox->setCurrentIndex(1);
+        break;
+    case AppItemStateE::ReviewRequest:
+        configure_form_.stateComboBox->setCurrentIndex(2);
+        break;
+    case AppItemStateE::ReviewStarted:
+        configure_form_.stateComboBox->setPlaceholderText(tr("Review Started"));
+        configure_form_.stateComboBox->setCurrentIndex(-1);
+        break;
+    case AppItemStateE::ReviewAccepted:
+        configure_form_.stateComboBox->setPlaceholderText(tr("Review Accepted"));
+        configure_form_.stateComboBox->setCurrentIndex(-1);
+        break;
+    case AppItemStateE::ReviewRejected:
+        configure_form_.stateComboBox->setPlaceholderText(tr("Review Rejected"));
+        configure_form_.stateComboBox->setCurrentIndex(-1);
+        break;
+    case AppItemStateE::PublicAlpha:
+        configure_form_.stateComboBox->setCurrentIndex(2);
+        break;
+    case AppItemStateE::PublicBeta:
+        configure_form_.stateComboBox->setCurrentIndex(3);
+        break;
+    case AppItemStateE::PublicRelease:
+        configure_form_.stateComboBox->setCurrentIndex(4);
+        break;
+    default:
+        break;
+    }
+}
+
+void MainWindow::configureStateChangedSlot(int _index) {
+    using namespace ola::utility;
+
+    auto pcurrent_item = pimpl_->configure_form_.treeWidget->currentItem();
+
+    if (pimpl_->configure_form_.stateComboBox->count() == 0) {
+        return;
+    }
+
+    AppItemEntry item_entry{ pcurrent_item->data(0, Qt::UserRole).toULongLong() };
+    const int req_state = pimpl_->configure_form_.stateComboBox->itemData(_index).toInt();
+    if (static_cast<int>(item_entry.state()) != req_state)
+    {
+        //item_entry.state(static_cast<AppItemStateE>(req_state));
+        //pcurrent_item->setData(0, Qt::UserRole, item_entry.value());
+        auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
+
+        item_entry.name_ = pcurrent_item->text(0).toStdString();
+        pimpl_->engine().changeAppItemState(
+            item.engine_index_,
+            item_entry, req_state,
+            [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::Response>& _response_ptr) {
+                solid_log(logger, Verbose, "ChangeAppItemState response: "<<_response_ptr->error_<<" message: "<<_response_ptr->message_);
+                
+                pimpl_->engine().fetchItemEntries(
+                    engine_index,
+                    [this, index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+                        //called on another thread - need to move the data onto GUI thread
+                        emit itemEntries(index, _response_ptr);
+                    });
+            }
+        );
+    }
+}
+
+void MainWindow::onReviewAcceptButtonClicked(bool _checked) {
+    using namespace ola::utility;
+    auto index = pimpl_->item_form_.comboBox->currentIndex();
+    AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(index).toULongLong() };
+    
+    entry.name_ = pimpl_->item_form_.comboBox->itemText(index).toStdString();
+    auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
+
+    pimpl_->engine().changeAppItemState(
+        item.engine_index_,
+        entry, static_cast<int>(AppItemStateE::ReviewAccepted),
+        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::Response>& _response_ptr) {
+        solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
+
+        pimpl_->engine().fetchItemEntries(
+            engine_index,
+            [this, index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+                //called on another thread - need to move the data onto GUI thread
+                emit itemEntries(index, _response_ptr);
+            });
+    }
+    );
+}
+
+void MainWindow::onReviewRejectButtonClicked(bool _checked) {
+    using namespace ola::utility;
+    auto index = pimpl_->item_form_.comboBox->currentIndex();
+    AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(index).toULongLong() };
+
+    entry.name_ = pimpl_->item_form_.comboBox->itemText(index).toStdString();
+    auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
+
+    pimpl_->engine().changeAppItemState(
+        item.engine_index_,
+        entry, static_cast<int>(AppItemStateE::ReviewRejected),
+        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::Response>& _response_ptr) {
+        solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
+
+        pimpl_->engine().fetchItemEntries(
+            engine_index,
+            [this, index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+                //called on another thread - need to move the data onto GUI thread
+                emit itemEntries(index, _response_ptr);
+            });
+    }
+    );
 }
 
 } //namespace store

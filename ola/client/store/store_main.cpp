@@ -140,7 +140,7 @@ struct Authenticator {
         running_ = false;
     }
 
-    fs::path authDataDirectoryPath() const
+    fs::path configDirectoryPath() const
     {
         fs::path p = path_prefix_;
         p /= "config";
@@ -149,8 +149,14 @@ struct Authenticator {
 
     fs::path authDataFilePath() const
     {
-        return authDataDirectoryPath() / "auth.data";
+        return configDirectoryPath() / "auth.data";
     }
+
+    fs::path appListFilePath() const
+    {
+        return configDirectoryPath() / "app_list.data";
+    }
+
     bool loadAuth(string& _rendpoint, string& _ruser, string& _rtoken)
     {
         if (!token_.empty()) {
@@ -320,6 +326,7 @@ int main(int argc, char* argv[])
         config.language_       = "en-US";
         config.os_             = "Windows10x86_64";
         config.front_endpoint_ = params.front_endpoint;
+        config.app_list_file_path_ = authenticator.appListFilePath();
         if (config.front_endpoint_.empty()) {
             lock_guard<mutex> lock(authenticator.mutex_);
             string user;
@@ -337,13 +344,12 @@ int main(int argc, char* argv[])
                                    string&&       _uname,
                                    string&&       _ucompany,
                                    string&&       _ubrief,
+                                   string&&       _ubuild_id,
                                    vector<char>&& _uimage,
-                                   const bool     _aquired,
-                                   const bool     _owned,
-                                   const bool     _default) {
+                                   const uint32_t  _flags) {
             cwp.push(
-                [_index, _count, &main_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), image = std::move(_uimage), _aquired, _owned, _default]() {
-                    main_window.model().prepareAndPushItem(_index, _count, name, company, brief, image, _aquired, _owned, _default);
+                [_index, _count, &main_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), build_id = std::move(_ubuild_id), image = std::move(_uimage), _flags]() {
+                    main_window.model().prepareAndPushItem(_index, _count, name, company, brief, build_id, image, _flags);
                 });
         };
         config.on_fetch_error_fnc_ = [&cwp, &main_window](

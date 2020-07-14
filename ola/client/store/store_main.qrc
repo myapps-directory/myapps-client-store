@@ -1,19 +1,30 @@
 <RCC>
     <qresource prefix="/">
-        <file>images/icon_window_minimize.png</file>
-        <file>images/icon_window_restore.png</file>
-        <file>images/icon_window_maximize.png</file>
-        <file>images/icon_window_close.png</file>
         <file>images/ola_store_bag.ico</file>
         <file>images/ola_store_bag.png</file>
         <file>images/owned.png</file>
         <file>images/acquired.png</file>
         <file>images/empty.png</file>
-        <file>images/acquired_owned.png</file>
+        <file>images/review.png</file>
         <file>images/back.png</file>
         <file>images/home.png</file>
         <file>images/config.png</file>
         <file>images/account.png</file>
         <file>images/about.png</file>
+        <file>images/private_alpha.png</file>
+        <file>images/review_requested.png</file>
+        <file>images/review_started.png</file>
+        <file>images/review_rejected.png</file>
+        <file>images/review_accepted.png</file>
+        <file>images/public_alpha.png</file>
+        <file>images/public_beta.png</file>
+        <file>images/public_release.png</file>
+        <file>images/review_reject.png</file>
+        <file>images/review_accept.png</file>
+        <file>images/configure.png</file>
+        <file>images/none.png</file>
+        <file>images/trash.png</file>
+        <file>images/acquire_on.png</file>
+        <file>images/acquire_off.png</file>
     </qresource>
 </RCC>

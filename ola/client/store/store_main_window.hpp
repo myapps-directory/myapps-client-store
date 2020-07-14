@@ -4,6 +4,7 @@
 #include "store_engine.hpp"
 #include <QAbstractListModel>
 #include <QListWidgetItem>
+#include <QTreeWidgetItem>
 #include <QMainWindow>
 #include <QStyledItemDelegate>
 #include <deque>
@@ -46,16 +47,21 @@ struct ListItem {
     QString company_;
     QString brief_;
     QImage  image_;
-    bool    acquired_ = false;
-    bool    owned_    = false;
-    bool    default_  = false;
+    QString build_id_;
+    uint32_t flags_;
 
-    QVector<QPair<QString, QString>> media_vec_;
+    std::shared_ptr<ola::front::FetchBuildConfigurationResponse> data_ptr_;
 
-    void paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _acquired_owned_pix) const;
+    void paint(
+        QPainter* painter, const Sizes& _rszs,
+        const QStyleOptionViewItem& option,
+        const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _review_pix) const;
 };
 
 Q_DECLARE_METATYPE(const ListItem*)
+Q_DECLARE_METATYPE(std::shared_ptr<ola::front::FetchBuildConfigurationResponse>)
+Q_DECLARE_METATYPE(std::shared_ptr<ola::front::FetchAppResponse>)
+
 
 class ListModel : public QAbstractListModel {
     Q_OBJECT
@@ -87,10 +93,9 @@ public:
         const std::string&       _name,
         const std::string&       _company,
         const std::string&       _brief,
+        const std::string&       _build_id,
         const std::vector<char>& _image,
-        const bool               _aquired = true,
-        const bool               _owned   = true,
-        const bool               _default = true);
+        const uint32_t _flags = 0);
     void prepareAndPushItem(
         const size_t _index,
         const size_t _count);
@@ -131,7 +136,7 @@ private:
     const Sizes& rsizes_;
     QPixmap      acquired_pix_;
     QPixmap      owned_pix_;
-    QPixmap      acquired_owned_pix_;
+    QPixmap      review_pix_;
 };
 
 class MainWindow : public QMainWindow {
@@ -148,16 +153,19 @@ private:
 signals:
     void closeSignal();
     void offlineSignal(bool);
-    void itemData(int _index, QString _description, QString _release);
-    void itemMedia(int _index, VectorPairStringT _media_vec);
+    void itemData(int _index, std::shared_ptr<ola::front::FetchBuildConfigurationResponse> _response_ptr);
+    void itemEntries(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr);
     void itemAcquire(int _index, bool _acquired);
 
 private slots:
     void onOffline(bool);
     void onItemDoubleClicked(const QModelIndex&);
     void onAquireButtonToggled(bool _checked);
-    void itemDataSlot(int _index, const QString& _description, const QString& _release);
-    void itemMediaSlot(int _index, const VectorPairStringT& _rmedia_vec);
+    void onConfigureButtonClicked(bool _checked);
+    void onReviewAcceptButtonClicked(bool _checked);
+    void onReviewRejectButtonClicked(bool _checked);
+    void itemDataSlot(int _index, std::shared_ptr<ola::front::FetchBuildConfigurationResponse> _response_ptr);
+    void itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr);
     void itemAcquireSlot(int _index, bool _acquired);
     void imageDoubleClicked(QListWidgetItem*);
 
@@ -166,11 +174,19 @@ private slots:
     void goBackSlot(bool);
     void goAboutSlot(bool);
 
+    void buildChangedSlot(int _index);
+
+    void configureItemChangedSlot(QTreeWidgetItem* current, QTreeWidgetItem* previous);
+
+    void configureStateChangedSlot(int _index);
+
 private:
     void closeEvent(QCloseEvent*) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
     void showMediaThumbnails(int _index);
     void showItem(int _index);
+
+    void prepareConfigureForm(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr);
 
 private:
     struct Data;

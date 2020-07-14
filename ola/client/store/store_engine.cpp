@@ -2,6 +2,7 @@
 #include "ola/common/utility/encode.hpp"
 #include "solid/system/log.hpp"
 #include <unordered_map>
+#include "ola/client/utility/app_list_file.hpp"
 
 #include <deque>
 
@@ -21,11 +22,6 @@ struct ApplicationStub {
         Fetched,
         Errored,
     };
-    enum struct FlagsE : uint8_t {
-        Aquired = 0,
-        Owned,
-        Default,
-    };
 
     string  app_id_;
     string  app_uid_;
@@ -33,14 +29,14 @@ struct ApplicationStub {
     size_t  model_index_ = InvalidIndex();
     uint8_t flags_       = 0;
 
-    void flag(const FlagsE _flag)
+    void flag(const ApplicationFlagE _flag)
     {
-        flags_ |= (1 << static_cast<uint8_t>(_flag));
+        set_application_flag(flags_, _flag);
     }
 
-    bool hasFlag(const FlagsE _flag) const
+    bool hasFlag(const ApplicationFlagE _flag) const
     {
-        return (flags_ & (1 << static_cast<uint8_t>(_flag))) != 0;
+        return has_application_flag(flags_, _flag);
     }
 
     ApplicationStub(string&& _app_id, string&& _app_uid)
@@ -68,6 +64,7 @@ struct Equal {
 using ApplicationDequeT = std::deque<ApplicationStub>;
 using AtomicSizeT       = std::atomic<size_t>;
 using ApplicationMapT   = std::unordered_map<const std::reference_wrapper<const string>, size_t, Hash, Equal>;
+using AppListFileT = ola::client::utility::AppListFile;
 
 struct Engine::Implementation {
     Configuration           config_;
@@ -76,6 +73,7 @@ struct Engine::Implementation {
     ApplicationMapT         app_map_;
     size_t                  fetch_count_ = 0;
     mutex                   mutex_;
+    AppListFileT            app_list_file_;
 
 public:
     Implementation(frame::mprpc::ServiceT& _rrpc_service)
@@ -88,10 +86,10 @@ public:
         fetch_count_ = config_.start_fetch_count_;
     }
 
-    string localMediaPath(const string& _path, const string& _storage_id, const string& _unique) const
+    string localMediaPath(const string& _path, const string& _storage_id) const
     {
         //TODO:
-        return "c:\\MyApps.space\\.m\\" + utility::hex_encode(_storage_id) + '\\' + _path;
+        return "c:\\MyApps.space\\.m\\" + ola::utility::hex_encode(_storage_id) + '\\' + _path;
     }
 };
 
@@ -108,6 +106,9 @@ void Engine::start(Configuration&& _rcfg)
 {
     pimpl_->config(std::move(_rcfg));
 
+
+    pimpl_->app_list_file_.load(pimpl_->config_.app_list_file_path_);
+
     auto req_ptr = make_shared<front::ListAppsRequest>();
 
     //A - all applications
@@ -118,9 +119,15 @@ void Engine::start(Configuration&& _rcfg)
                       std::shared_ptr<front::ListAppsResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                    _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-            for (auto& app_id : _rrecv_msg_ptr->app_vec_) {
-                pimpl_->app_dq_.emplace_back(std::move(app_id.id_), std::move(app_id.unique_));
+            for (auto& app : _rrecv_msg_ptr->app_vec_) {
+                pimpl_->app_dq_.emplace_back(std::move(app.id_), std::move(app.unique_));
                 pimpl_->app_map_[pimpl_->app_dq_.back().app_uid_] = pimpl_->app_dq_.size() - 1;
+                if (app.isFlagSet(ola::utility::AppFlagE::Owned)) {
+                    pimpl_->app_dq_.back().flag(ApplicationFlagE::Owned);
+                }
+                if (app.isFlagSet(ola::utility::AppFlagE::ReviewRequest)) {
+                    pimpl_->app_dq_.back().flag(ApplicationFlagE::ReviewRequest);
+                }
             }
             requestAquired(_rsent_msg_ptr);
         } else if (!_rrecv_msg_ptr) {
@@ -130,6 +137,8 @@ void Engine::start(Configuration&& _rcfg)
         }
     };
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+
+
 }
 
 void Engine::stop()
@@ -151,10 +160,11 @@ void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
             for (auto& a : _rrecv_msg_ptr->app_vec_) {
                 const auto it = pimpl_->app_map_.find(a.unique_);
                 if (it != pimpl_->app_map_.end()) {
-                    pimpl_->app_dq_[it->second].flag(ApplicationStub::FlagsE::Aquired);
+                    pimpl_->app_dq_[it->second].flag(ApplicationFlagE::Aquired);
                 }
             }
-            requestOwned(_rsent_msg_ptr);
+            //requestOwned(_rsent_msg_ptr);
+            requestDefault(_rsent_msg_ptr);
         } else if (!_rrecv_msg_ptr) {
             solid_log(logger, Info, "no ListAppsResponse: " << _rerror.message());
         } else {
@@ -163,7 +173,8 @@ void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
     };
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
-
+#if 0
+//not needed - we get this information from above ListAppsResponse
 void Engine::requestOwned(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
 {
     auto req_ptr = std::move(_rreq_msg);
@@ -191,6 +202,7 @@ void Engine::requestOwned(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
     };
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
+#endif
 
 void Engine::requestDefault(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
 {
@@ -207,7 +219,7 @@ void Engine::requestDefault(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
             for (auto& a : _rrecv_msg_ptr->app_vec_) {
                 const auto it = pimpl_->app_map_.find(a.unique_);
                 if (it != pimpl_->app_map_.end()) {
-                    pimpl_->app_dq_[it->second].flag(ApplicationStub::FlagsE::Default);
+                    pimpl_->app_dq_[it->second].flag(ApplicationFlagE::Default);
                 }
             }
             requestMore(0, pimpl_->config_.start_fetch_count_);
@@ -235,20 +247,29 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
         }
     }
     for (size_t i = _index; i < last_index; ++i) {
-        auto lambda = [this, i](
+
+        auto req_ptr = make_shared<ola::front::FetchBuildConfigurationRequest>();
+        string build_request;
+        {
+            lock_guard<mutex> lock(pimpl_->mutex_);
+            req_ptr->app_id_ = pimpl_->app_dq_[i].app_id_;
+            build_request = pimpl_->app_list_file_.find(pimpl_->app_dq_[i].app_uid_).name_;
+        }
+
+
+        auto lambda = [this, i, build_request](
                           frame::mprpc::ConnectionContext&                              _rctx,
                           std::shared_ptr<ola::front::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
                           std::shared_ptr<ola::front::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
-                          ErrorConditionT const&                                        _rerror) {
+                          ErrorConditionT const&                                        _rerror) mutable {
             if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
                 pimpl_->config_.on_fetch_fnc_(i, pimpl_->fetch_count_,
                     std::move(_rrecv_msg_ptr->configuration_.property_vec_[0].second), //name
                     std::move(_rrecv_msg_ptr->configuration_.property_vec_[1].second), //company
                     std::move(_rrecv_msg_ptr->configuration_.property_vec_[2].second), //brief
+                    std::move(build_request),
                     std::move(_rrecv_msg_ptr->image_blob_),
-                    pimpl_->app_dq_[i].hasFlag(ApplicationStub::FlagsE::Aquired),
-                    pimpl_->app_dq_[i].hasFlag(ApplicationStub::FlagsE::Owned),
-                    pimpl_->app_dq_[i].hasFlag(ApplicationStub::FlagsE::Default));
+                    pimpl_->app_dq_[i].flags_);
             } else /*if (_rrecv_msg_ptr->error_)*/ {
                 {
                     lock_guard<mutex> lock(pimpl_->mutex_);
@@ -257,14 +278,14 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
                 pimpl_->config_.on_fetch_error_fnc_(i, pimpl_->fetch_count_);
             }
         };
-        auto req_ptr = make_shared<ola::front::FetchBuildConfigurationRequest>();
-        {
-            lock_guard<mutex> lock(pimpl_->mutex_);
-            req_ptr->app_id_ = pimpl_->app_dq_[i].app_id_;
-        }
+        
 
         req_ptr->lang_  = pimpl_->config_.language_;
         req_ptr->os_id_ = pimpl_->config_.os_;
+        req_ptr->build_id_ = build_request;
+        if (req_ptr->build_id_ == ola::utility::app_item_invalid) {
+            req_ptr->build_id_.clear();
+        }
 
         ola::utility::Build::set_option(req_ptr->fetch_options_, ola::utility::Build::FetchOptionsE::Image);
         req_ptr->property_vec_.emplace_back("name");
@@ -300,19 +321,23 @@ void Engine::onModelFetchedItems(size_t _model_index, size_t _engine_current_ind
     }
 }
 
-void Engine::fetchItemData(const size_t _index, OnFetchItemDataT _fetch_fnc)
+void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFetchItemDataT _fetch_fnc)
 {
-    auto lambda = [_fetch_fnc](
-                      frame::mprpc::ConnectionContext&                              _rctx,
-                      std::shared_ptr<ola::front::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<ola::front::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
-                      ErrorConditionT const&                                        _rerror) {
+    auto lambda = [this, _fetch_fnc](
+        frame::mprpc::ConnectionContext& _rctx,
+        std::shared_ptr<ola::front::FetchBuildConfigurationRequest>& _rsent_msg_ptr,
+        std::shared_ptr<ola::front::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
+        ErrorConditionT const& _rerror) {
+        
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-            _fetch_fnc(_rrecv_msg_ptr->configuration_.property_vec_[0].second, _rrecv_msg_ptr->configuration_.property_vec_[1].second);
-        } else /*if (_rrecv_msg_ptr->error_)*/ {
-            _fetch_fnc("", "");
+            for (auto& e : _rrecv_msg_ptr->configuration_.media_.entry_vec_) {
+                e.thumbnail_path_ = pimpl_->localMediaPath(e.thumbnail_path_, _rrecv_msg_ptr->media_storage_id_);
+                e.path_ = pimpl_->localMediaPath(e.path_, _rrecv_msg_ptr->media_storage_id_);
+            }
         }
+        _fetch_fnc(_rrecv_msg_ptr);
     };
+
     auto req_ptr = make_shared<ola::front::FetchBuildConfigurationRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
@@ -321,38 +346,36 @@ void Engine::fetchItemData(const size_t _index, OnFetchItemDataT _fetch_fnc)
 
     req_ptr->lang_  = pimpl_->config_.language_;
     req_ptr->os_id_ = pimpl_->config_.os_;
+    req_ptr->build_id_ = _build_name;
 
     ola::utility::Build::set_option(req_ptr->fetch_options_, ola::utility::Build::FetchOptionsE::Image);
+    ola::utility::Build::set_option(req_ptr->fetch_options_, ola::utility::Build::FetchOptionsE::Media);
+    req_ptr->property_vec_.emplace_back("name");
+    req_ptr->property_vec_.emplace_back("company");
+    req_ptr->property_vec_.emplace_back("brief");
     req_ptr->property_vec_.emplace_back("description");
     req_ptr->property_vec_.emplace_back("release");
 
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
 
-void Engine::fetchItemMedia(const size_t _index, OnFetchItemMediaT _fetch_fnc)
+void Engine::fetchItemEntries(const size_t _index, OnFetchAppItemsT _fetch_fnc)
 {
     auto lambda = [this, _fetch_fnc](
-                      frame::mprpc::ConnectionContext&                              _rctx,
-                      std::shared_ptr<ola::front::FetchMediaConfigurationRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<ola::front::FetchMediaConfigurationResponse>& _rrecv_msg_ptr,
-                      ErrorConditionT const&                                        _rerror) {
-        vector<pair<string, string>> media_vec;
+        frame::mprpc::ConnectionContext& _rctx,
+        std::shared_ptr<ola::front::FetchAppRequest>& _rsent_msg_ptr,
+        std::shared_ptr<ola::front::FetchAppResponse>& _rrecv_msg_ptr,
+        ErrorConditionT const& _rerror) {
 
-        if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-
-            for (const auto& m : _rrecv_msg_ptr->configuration_.entry_vec_) {
-                media_vec.emplace_back(pimpl_->localMediaPath(m.thumbnail_path_, _rrecv_msg_ptr->storage_id_, _rrecv_msg_ptr->unique_), pimpl_->localMediaPath(m.path_, _rrecv_msg_ptr->storage_id_, _rrecv_msg_ptr->unique_));
-            }
-        }
-        _fetch_fnc(media_vec);
+            _fetch_fnc(_rrecv_msg_ptr);
     };
-    auto req_ptr = make_shared<ola::front::FetchMediaConfigurationRequest>();
+
+    auto req_ptr = make_shared<ola::front::FetchAppRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
     }
 
-    req_ptr->lang_  = pimpl_->config_.language_;
     req_ptr->os_id_ = pimpl_->config_.os_;
 
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
@@ -378,6 +401,48 @@ void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItem
     }
 
     req_ptr->acquire_ = _acquire;
+
+    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+}
+
+void Engine::acquireBuild(const size_t _index, const std::string& _build_id) {
+    lock_guard<mutex> lock(pimpl_->mutex_);
+    
+    if (_build_id.empty()) {
+        pimpl_->app_list_file_.erase(pimpl_->app_dq_[_index].app_uid_);
+    }
+    else {
+        ola::utility::AppItemEntry entry;
+        entry.name_ = _build_id;
+        pimpl_->app_list_file_.insert(pimpl_->app_dq_[_index].app_uid_, entry);
+    }
+    pimpl_->app_list_file_.store(pimpl_->config_.app_list_file_path_);
+}
+
+void Engine::changeAppItemState(
+    const size_t _index,
+    const ola::utility::AppItemEntry& _app_item,
+    const uint8_t _req_state,
+    OnResponseT _on_response_fnc
+) {
+    auto lambda = [this, _on_response_fnc](
+        frame::mprpc::ConnectionContext& _rctx,
+        std::shared_ptr<ola::front::ChangeAppItemStateRequest>& _rsent_msg_ptr,
+        std::shared_ptr<ola::front::Response>& _rrecv_msg_ptr,
+        ErrorConditionT const& _rerror) {
+
+            _on_response_fnc(_rrecv_msg_ptr);
+    };
+
+    auto req_ptr = make_shared<ola::front::ChangeAppItemStateRequest>();
+    {
+        lock_guard<mutex> lock(pimpl_->mutex_);
+        req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
+    }
+
+    req_ptr->os_id_ = pimpl_->config_.os_;
+    req_ptr->item_ = _app_item;
+    req_ptr->new_state_ = _req_state;
 
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }

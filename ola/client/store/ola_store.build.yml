@@ -39,3 +39,10 @@ configurations:
         icon: ola_store_bag.ico
         arguments: ""
         run_folder: ""
+    media:
+      name: "MEDIAID"
+      entries:
+      - thumbnail:  "capture1t.jpg"
+        file: "capture1.jpg"
+      - thumbnail:  "capture2t.jpg"
+        file: "capture2.jpg"

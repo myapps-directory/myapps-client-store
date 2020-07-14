@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
-project(OlaClientStore VERSION 1.1)
+project(OlaClientStore VERSION 1.5)
 
 set(EXTERNAL_DIR "" CACHE PATH "External dependencies folder")
 
