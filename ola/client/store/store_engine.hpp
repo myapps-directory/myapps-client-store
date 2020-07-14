@@ -12,8 +12,30 @@ namespace ola {
 namespace client {
 namespace store {
 
+enum struct ApplicationFlagE : uint8_t {
+    Aquired = 0,
+    Owned,
+    ReviewRequest,
+    Default,
+};
+
+template <class T>
+bool has_application_flag(const T _v, ApplicationFlagE _f) {
+    return (_v & (static_cast<T>(1) << static_cast<uint8_t>(_f))) != 0;
+}
+
+template <class T>
+void set_application_flag(T &_rflags, ApplicationFlagE _f, const bool _yes = true) {
+    if (_yes) {
+        _rflags |= (1 << static_cast<uint8_t>(_f));
+    }
+    else {
+        _rflags &= (~(1 << static_cast<uint8_t>(_f)));
+    }
+}
+
 struct Configuration{
-    using OnFetchFunctionT = std::function<void(size_t, size_t, std::string&&, std::string&&, std::string&&, std::string&&, std::vector<char>&&, bool, bool, bool)>;
+    using OnFetchFunctionT = std::function<void(size_t, size_t, std::string&&, std::string&&, std::string&&, std::string&&, std::vector<char>&&, const uint32_t)>;
     using OnFetchErrorFunctionT = std::function<void(size_t, size_t)>;
 
     std::string       front_endpoint_;

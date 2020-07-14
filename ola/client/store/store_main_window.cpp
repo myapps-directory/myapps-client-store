@@ -128,7 +128,9 @@ struct MainWindow::Data {
     void configureMediaPrepareStateComboBox(const ola::utility::AppItemEntry& _build);
 };
 
-void ListItem::paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option, const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _review_pix) const
+void ListItem::paint(
+    QPainter* painter, const Sizes& _rszs, const QStyleOptionViewItem& option,
+    const QPixmap& _acquired_pix, const QPixmap& _owned_pix, const QPixmap& _review_pix) const
 {
     painter->setRenderHint(QPainter::Antialiasing, true);
 
@@ -172,15 +174,15 @@ void ListItem::paint(QPainter* painter, const Sizes& _rszs, const QStyleOptionVi
     }
     {
         int pix_x = _rszs.image_width_ - 32;
-        if (acquired_ || default_) {
+        if (has_application_flag(flags_, ApplicationFlagE::Aquired) || has_application_flag(flags_, ApplicationFlagE::Default)) {
             painter->drawPixmap(QRect(pix_x, 0, 32, 32), _acquired_pix);
             pix_x -= 32;
         }
-        if (owned_) {
+        if (has_application_flag(flags_, ApplicationFlagE::Owned)) {
             painter->drawPixmap(QRect(pix_x, 0, 32, 32), _owned_pix);
             pix_x -= 32;
         }
-        if (review_) {
+        if (has_application_flag(flags_, ApplicationFlagE::ReviewRequest)) {
             painter->drawPixmap(QRect(pix_x, 0, 32, 32), _review_pix);
             pix_x -= 32;
         }
@@ -260,9 +262,7 @@ void ListModel::prepareAndPushItem(
     const std::string&  _brief,
     const std::string&  _build_id,
     const vector<char>& _image,
-    const bool          _acquired,
-    const bool          _owned,
-    const bool          _default)
+    const uint32_t      _flags)
 {
     //called on pool thread
     ListItem item;
@@ -271,9 +271,7 @@ void ListModel::prepareAndPushItem(
     item.company_      = QString::fromStdString(_company);
     item.name_         = QString::fromStdString(_name);
     item.build_id_     = QString::fromStdString(_build_id);
-    item.owned_        = _owned;
-    item.acquired_     = _acquired;
-    item.default_      = _default;
+    item.flags_        = _flags;
     QImage img;
     if (img.loadFromData(reinterpret_cast<const uchar*>(_image.data()), _image.size())) {
         item.image_ = img.scaled(QSize(rsizes_.image_width_, rsizes_.image_height_), Qt::KeepAspectRatio, Qt::SmoothTransformation);
@@ -570,12 +568,12 @@ void MainWindow::showItem(int _index)
     pimpl_->item_form_.media_list_widget->hide();
     pimpl_->item_form_.media_list_widget->clear();
 
-    pimpl_->item_form_.acquire_button->setChecked(item.acquired_);
-    pimpl_->item_form_.acquire_button->setEnabled(!item.default_);
+    pimpl_->item_form_.acquire_button->setChecked(has_application_flag(item.flags_, ApplicationFlagE::Aquired));
+    pimpl_->item_form_.acquire_button->setEnabled(!has_application_flag(item.flags_, ApplicationFlagE::Default));
 
     bool enable_combo = false;
 
-    if (item.acquired_ || item.default_) {
+    if (has_application_flag(item.flags_, ApplicationFlagE::Aquired) || has_application_flag(item.flags_, ApplicationFlagE::Default)) {
         enable_combo = true;
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_on.png"));
     }
@@ -598,7 +596,6 @@ void MainWindow::showItem(int _index)
 #endif
 
     pimpl_->item_form_.comboBox->setEnabled(enable_combo);
-    pimpl_->item_form_.configure_button->setEnabled(enable_combo);
     pimpl_->item_form_.review_accept_button->setEnabled(enable_combo);
     pimpl_->item_form_.review_reject_button->setEnabled(enable_combo);
 
@@ -711,7 +708,7 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
     pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicAlpha)), tr("Latest Public Alpha"));
     pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Invalid)), tr("Hide"));
 
-    if (item.owned_) {
+    if (has_application_flag(item.flags_, ApplicationFlagE::Owned)) {
         pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PrivateAlpha)), tr("Private Alpha"));
         pimpl_->item_form_.configure_button->show();
     }
@@ -751,7 +748,7 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
         else if (item.build_id_ == app_item_invalid) {
             index = 4;
         }
-        else if (item.owned_ && item.build_id_ == ola::utility::app_item_private_alpha) {
+        else if (has_application_flag(item.flags_, ApplicationFlagE::Owned) && item.build_id_ == ola::utility::app_item_private_alpha) {
             index = 5;
         }
         else {
@@ -760,7 +757,7 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
                     index = i;
                     AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(i).toULongLong()};
 
-                    if (!item.owned_ && entry.state() >= AppItemStateE::ReviewRequest && entry.state() <= AppItemStateE::ReviewRejected) {
+                    if (!has_application_flag(item.flags_, ApplicationFlagE::Owned) && entry.state() >= AppItemStateE::ReviewRequest && entry.state() <= AppItemStateE::ReviewRejected) {
                         pimpl_->item_form_.review_accept_button->show();
                         pimpl_->item_form_.review_reject_button->show();
                     }
@@ -776,7 +773,7 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
         pimpl_->item_form_.comboBox->setCurrentIndex(index);
     }
 
-    if (item.owned_) {
+    if (has_application_flag(item.flags_, ApplicationFlagE::Owned)) {
         prepareConfigureForm(_index, _response_ptr);
     }
 }
@@ -860,13 +857,14 @@ void MainWindow::itemAcquireSlot(int _index, bool _acquired)
 {
     auto& item = pimpl_->list_model_.item(_index);
 
-    item.acquired_ = _acquired;
+
+    set_application_flag(item.flags_, ApplicationFlagE::Aquired, _acquired);
 
     if (_index == pimpl_->current_item_) {
         pimpl_->item_form_.acquire_button->setChecked(_acquired);
-        pimpl_->item_form_.acquire_button->setEnabled(!item.default_);
+        pimpl_->item_form_.acquire_button->setEnabled(!has_application_flag(item.flags_, ApplicationFlagE::Default));
         bool enable_combo = false;
-        if (item.acquired_ || item.default_) {
+        if (has_application_flag(item.flags_, ApplicationFlagE::Aquired) || has_application_flag(item.flags_, ApplicationFlagE::Default)) {
             enable_combo = true;
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_on.png"));
         }
@@ -887,7 +885,6 @@ void MainWindow::itemAcquireSlot(int _index, bool _acquired)
         }
 #endif
         pimpl_->item_form_.comboBox->setEnabled(enable_combo);
-        pimpl_->item_form_.configure_button->setEnabled(enable_combo);
         pimpl_->item_form_.review_accept_button->setEnabled(enable_combo);
         pimpl_->item_form_.review_reject_button->setEnabled(enable_combo);
         pimpl_->item_form_.comboBox->setCurrentIndex(0);
@@ -961,7 +958,7 @@ void MainWindow::onAquireButtonToggled(bool _checked)
 {
     const auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
 
-    if (!item.default_) {
+    if (!has_application_flag(item.flags_, ApplicationFlagE::Default)) {
         pimpl_->engine().acquireItem(
             item.engine_index_,
             _checked,
@@ -1069,7 +1066,7 @@ void MainWindow::buildChangedSlot(int _index)
     else if (_index == 4) {
         build_id = app_item_invalid;
     }
-    else if (item.owned_ && _index == 5) {
+    else if (has_application_flag(item.flags_, ApplicationFlagE::Owned) && _index == 5) {
         build_id = app_item_private_alpha;
     }
     else {
@@ -1079,7 +1076,7 @@ void MainWindow::buildChangedSlot(int _index)
     if (build_id != item.build_id_) {
         AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(_index).toULongLong() };
 
-        if (!item.owned_ && entry.state() >= AppItemStateE::ReviewRequest && entry.state() <= AppItemStateE::ReviewRejected) {
+        if (!has_application_flag(item.flags_, ApplicationFlagE::Owned) && entry.state() >= AppItemStateE::ReviewRequest && entry.state() <= AppItemStateE::ReviewRejected) {
             pimpl_->item_form_.review_accept_button->show();
             pimpl_->item_form_.review_reject_button->show();
 

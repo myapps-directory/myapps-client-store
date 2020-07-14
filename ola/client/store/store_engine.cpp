@@ -22,12 +22,6 @@ struct ApplicationStub {
         Fetched,
         Errored,
     };
-    enum struct FlagsE : uint8_t {
-        Aquired = 0,
-        Owned,
-        ReviewRequest,
-        Default,
-    };
 
     string  app_id_;
     string  app_uid_;
@@ -35,14 +29,14 @@ struct ApplicationStub {
     size_t  model_index_ = InvalidIndex();
     uint8_t flags_       = 0;
 
-    void flag(const FlagsE _flag)
+    void flag(const ApplicationFlagE _flag)
     {
-        flags_ |= (1 << static_cast<uint8_t>(_flag));
+        set_application_flag(flags_, _flag);
     }
 
-    bool hasFlag(const FlagsE _flag) const
+    bool hasFlag(const ApplicationFlagE _flag) const
     {
-        return (flags_ & (1 << static_cast<uint8_t>(_flag))) != 0;
+        return has_application_flag(flags_, _flag);
     }
 
     ApplicationStub(string&& _app_id, string&& _app_uid)
@@ -129,10 +123,10 @@ void Engine::start(Configuration&& _rcfg)
                 pimpl_->app_dq_.emplace_back(std::move(app.id_), std::move(app.unique_));
                 pimpl_->app_map_[pimpl_->app_dq_.back().app_uid_] = pimpl_->app_dq_.size() - 1;
                 if (app.isFlagSet(ola::utility::AppFlagE::Owned)) {
-                    pimpl_->app_dq_.back().flag(ApplicationStub::FlagsE::Owned);
+                    pimpl_->app_dq_.back().flag(ApplicationFlagE::Owned);
                 }
                 if (app.isFlagSet(ola::utility::AppFlagE::ReviewRequest)) {
-                    pimpl_->app_dq_.back().flag(ApplicationStub::FlagsE::ReviewRequest);
+                    pimpl_->app_dq_.back().flag(ApplicationFlagE::ReviewRequest);
                 }
             }
             requestAquired(_rsent_msg_ptr);
@@ -166,7 +160,7 @@ void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
             for (auto& a : _rrecv_msg_ptr->app_vec_) {
                 const auto it = pimpl_->app_map_.find(a.unique_);
                 if (it != pimpl_->app_map_.end()) {
-                    pimpl_->app_dq_[it->second].flag(ApplicationStub::FlagsE::Aquired);
+                    pimpl_->app_dq_[it->second].flag(ApplicationFlagE::Aquired);
                 }
             }
             //requestOwned(_rsent_msg_ptr);
@@ -225,7 +219,7 @@ void Engine::requestDefault(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
             for (auto& a : _rrecv_msg_ptr->app_vec_) {
                 const auto it = pimpl_->app_map_.find(a.unique_);
                 if (it != pimpl_->app_map_.end()) {
-                    pimpl_->app_dq_[it->second].flag(ApplicationStub::FlagsE::Default);
+                    pimpl_->app_dq_[it->second].flag(ApplicationFlagE::Default);
                 }
             }
             requestMore(0, pimpl_->config_.start_fetch_count_);
@@ -275,9 +269,7 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
                     std::move(_rrecv_msg_ptr->configuration_.property_vec_[2].second), //brief
                     std::move(build_request),
                     std::move(_rrecv_msg_ptr->image_blob_),
-                    pimpl_->app_dq_[i].hasFlag(ApplicationStub::FlagsE::Aquired),
-                    pimpl_->app_dq_[i].hasFlag(ApplicationStub::FlagsE::Owned),
-                    pimpl_->app_dq_[i].hasFlag(ApplicationStub::FlagsE::Default));
+                    pimpl_->app_dq_[i].flags_);
             } else /*if (_rrecv_msg_ptr->error_)*/ {
                 {
                     lock_guard<mutex> lock(pimpl_->mutex_);

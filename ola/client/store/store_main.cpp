@@ -346,12 +346,10 @@ int main(int argc, char* argv[])
                                    string&&       _ubrief,
                                    string&&       _ubuild_id,
                                    vector<char>&& _uimage,
-                                   const bool     _aquired,
-                                   const bool     _owned,
-                                   const bool     _default) {
+                                   const uint32_t  _flags) {
             cwp.push(
-                [_index, _count, &main_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), build_id = std::move(_ubuild_id), image = std::move(_uimage), _aquired, _owned, _default]() {
-                    main_window.model().prepareAndPushItem(_index, _count, name, company, brief, build_id, image, _aquired, _owned, _default);
+                [_index, _count, &main_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), build_id = std::move(_ubuild_id), image = std::move(_uimage), _flags]() {
+                    main_window.model().prepareAndPushItem(_index, _count, name, company, brief, build_id, image, _flags);
                 });
         };
         config.on_fetch_error_fnc_ = [&cwp, &main_window](

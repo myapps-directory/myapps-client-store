@@ -48,10 +48,8 @@ struct ListItem {
     QString brief_;
     QImage  image_;
     QString build_id_;
-    bool    acquired_ = false;
-    bool    owned_    = false;
-    bool    default_  = false;
-    bool    review_ = false;
+    uint32_t flags_;
+
     std::shared_ptr<ola::front::FetchBuildConfigurationResponse> data_ptr_;
 
     void paint(
@@ -97,9 +95,7 @@ public:
         const std::string&       _brief,
         const std::string&       _build_id,
         const std::vector<char>& _image,
-        const bool               _aquired = true,
-        const bool               _owned   = true,
-        const bool               _default = true);
+        const uint32_t _flags = 0);
     void prepareAndPushItem(
         const size_t _index,
         const size_t _count);
