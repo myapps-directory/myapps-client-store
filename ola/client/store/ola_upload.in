@@ -3,6 +3,7 @@
 OPTION=$1
 APPID=$2
 BUILDID=$3
+MEDIAID=$4
 
 PROJECT_ROOT="@PROJECT_ROOT_DIR@"
 
@@ -10,19 +11,22 @@ createBuild()
 {
     local APPID=$1
     local BUILDID=$2
+    local MEDIAID=$3
 
     cp ola_client_launcher.exe tmp/build
     cp ola_client_store.exe tmp/build
 	cp "$PROJECT_ROOT/ola/client/store/images/ola_store_bag.ico" tmp/build
 	cp "$PROJECT_ROOT/ola/client/store/images/ola_store_bag.png" tmp
+
+    sed "s/MEDIAID/$MEDIAID/g" ola_store.build.yml > tmp/ola_store.build.yml
     
-    echo -ne "create build $APPID $BUILDID ola_store.build.yml tmp/build tmp/ola_store_bag.png\nq\n" | ola_client_cli
+    echo -ne "create build $APPID $BUILDID tmp/ola_store.build.yml tmp/build tmp/ola_store_bag.png\nq\n" | ola_client_cli
 }
 
 createMedia()
 {
     local APPID=$1
-    local BUILDID=$2
+    local MEDIAID=$2
 
     echo "create media $PROJECT_ROOT"
    
@@ -34,7 +38,7 @@ createMedia()
         magick convert -resize 384x216 "$filename" "tmp/media/$(basename "$filename" .png)t.jpg"
     done
 
-    echo -ne "create media $APPID $BUILDID ola_store.media.yml tmp/media\nq\n" | ola_client_cli
+    echo -ne "create media $APPID $MEDIAID tmp/media\nq\n" | ola_client_cli
 }
 
 
@@ -45,9 +49,9 @@ mkdir tmp/media
 
 
 if [ $OPTION == "m" ] || [ $OPTION == "A" ] ; then
-    createMedia $APPID $BUILDID
+    createMedia $APPID $MEDIAID
 fi
 
 if [ $OPTION == "b" ] || [ $OPTION == "A" ]; then
-    createBuild $APPID $BUILDID
+    createBuild $APPID $BUILDID $MEDIAID
 fi
