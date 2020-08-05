@@ -47,6 +47,9 @@ if(${Qt5Widgets_FOUND})
         store_engine.cpp
         store_engine.hpp
         ${FORMS_HEADERS}
+        ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ola_upload.in
+        ${CMAKE_CURRENT_SOURCE_DIR}/ola_store.build.yml
     )
 
     if(WIN32)
@@ -107,6 +110,14 @@ if(${Qt5Widgets_FOUND})
             ${SRCS}
         )
     endif()
+
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
+        COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
+        DEPENDS
+        ola_upload.in
+        ola_store.build.yml
+        COMMENT "Force trigger rebuild when artifact files do change"
+    )
 
     add_dependencies(ola_client_store build-snappy build-cereal)
     

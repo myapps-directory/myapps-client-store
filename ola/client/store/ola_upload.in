@@ -41,12 +41,10 @@ createMedia()
     echo -ne "create media $APPID $MEDIAID tmp/media\nq\n" | ola_client_cli
 }
 
-
 rm -rf tmp
 mkdir tmp
 mkdir tmp/build
 mkdir tmp/media
-
 
 if [ $OPTION == "m" ] || [ $OPTION == "A" ] ; then
     createMedia $APPID $MEDIAID
