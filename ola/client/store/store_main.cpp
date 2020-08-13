@@ -33,8 +33,6 @@
 
 #include "ola/common/utility/encode.hpp"
 
-#include "ola/common/ola_front_protocol.hpp"
-
 #include "ola/client/utility/auth_file.hpp"
 #include "ola/client/utility/file_monitor.hpp"
 

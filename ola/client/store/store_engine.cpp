@@ -173,36 +173,6 @@ void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
     };
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
-#if 0
-//not needed - we get this information from above ListAppsResponse
-void Engine::requestOwned(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
-{
-    auto req_ptr = std::move(_rreq_msg);
-
-    //o - owned applications
-    req_ptr->choice_ = 'o';
-    auto lambda      = [this](
-                      frame::mprpc::ConnectionContext&          _rctx,
-                      std::shared_ptr<front::ListAppsRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<front::ListAppsResponse>& _rrecv_msg_ptr,
-                      ErrorConditionT const&                    _rerror) {
-        if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-            for (auto& a : _rrecv_msg_ptr->app_vec_) {
-                const auto it = pimpl_->app_map_.find(a.unique_);
-                if (it != pimpl_->app_map_.end()) {
-                    pimpl_->app_dq_[it->second].flag(ApplicationStub::FlagsE::Owned);
-                }
-            }
-            requestDefault(_rsent_msg_ptr);
-        } else if (!_rrecv_msg_ptr) {
-            solid_log(logger, Info, "no ListAppsResponse: " << _rerror.message());
-        } else {
-            solid_log(logger, Info, "ListAppsResponse error: " << _rrecv_msg_ptr->error_);
-        }
-    };
-    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
-}
-#endif
 
 void Engine::requestDefault(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
 {

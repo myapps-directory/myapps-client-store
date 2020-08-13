@@ -5,3 +5,7 @@
 	path = ola/client/utility
 	url = git@github.com:vipalade/ola-client-utility.git
 	branch = master
+[submodule "ola/private"]
+	path = ola/private
+	url = git@github.com:vipalade/ola-private.git
+	branch = split
