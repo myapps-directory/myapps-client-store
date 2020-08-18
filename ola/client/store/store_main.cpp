@@ -436,7 +436,9 @@ void front_configure_service(Authenticator& _rauth, const Parameters& _params, f
     auto                        proto = front::ProtocolT::create();
     frame::mprpc::Configuration cfg(_rsch, proto);
 
+    front::protocol_setup_init(FrontSetup(), *proto);
     front::protocol_setup(FrontSetup(), *proto);
+    front::protocol_setup_store(FrontSetup(), *proto);
 
     cfg.client.name_resolve_fnc = frame::mprpc::InternetResolverF(_rres, ola::front::default_port());
 
