@@ -5,7 +5,9 @@
 #include <vector>
 #include "solid/system/pimpl.hpp"
 #include "solid/frame/mprpc/mprpcservice.hpp"
+#include "ola/common/ola_front_protocol_init.hpp"
 #include "ola/common/ola_front_protocol.hpp"
+#include "ola/private/ola_front_protocol_store.hpp"
 #include <boost/filesystem.hpp>
 
 namespace ola {
