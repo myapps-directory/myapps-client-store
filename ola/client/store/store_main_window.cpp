@@ -19,6 +19,10 @@
 #include <algorithm>
 #include <stack>
 #include <vector>
+#include <chrono>
+#include <iomanip>
+
+#include "ola/client/utility/version.hpp"
 
 #include "solid/system/cstring.hpp"
 #include "solid/system/log.hpp"
@@ -491,8 +495,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->tool_bar_.addSeparator();
     pimpl_->tool_bar_.addWidget(psearchcombo);
     pimpl_->tool_bar_.addWidget(empty);
-    pimpl_->tool_bar_.addSeparator();
-    pimpl_->tool_bar_.addWidget(ptoolbutton);
+    //pimpl_->tool_bar_.addSeparator();
+    //pimpl_->tool_bar_.addWidget(ptoolbutton);
     pimpl_->tool_bar_.addSeparator();
     pimpl_->tool_bar_.addAction(&pimpl_->about_action_);
 
@@ -521,6 +525,75 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
         [this]() {
             pimpl_->showWidget(pimpl_->store_form_.listWidget);
         });
+
+    pimpl_->about_form_.label_title->setText("MyApps.space Store");
+    {
+        using namespace std;
+        ostringstream oss;
+
+        oss << client::utility::VERSION_MAJOR << '.' << client::utility::VERSION_MINOR;
+        //oss << " - " << client::utility::version_vcs_branch();
+        oss << " - <a href=https://github.com/vipalade/ola-client-store/tree/" << client::utility::version_vcs_commit() << ">" << client::utility::version_vcs_commit() << "</a>";
+
+        pimpl_->about_form_.label_version->setText(QString::fromStdString(oss.str()));
+    }
+    {
+        using namespace std;
+        using namespace std::chrono;
+        auto now_c = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        std::tm ptm;
+        localtime_s(&ptm, &now_c);
+
+        {
+            ostringstream oss;
+
+            oss << "Copyright 2019-" << std::put_time(&ptm, "%Y") << " MyApps Co. All rights reserved." << endl;
+            oss << endl;
+            oss << "The program is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE." << endl;
+
+            pimpl_->about_form_.label_about->setText(QString::fromStdString(oss.str()));
+        }
+        {
+            ostringstream oss;
+            oss << "Open Source Software:" << endl;
+            oss << endl;
+            oss << " <a href=https://github.com/solidoss/solidframe>SolidFrame</a> - " << solid::VERSION_MAJOR << '.' << solid::VERSION_MINOR;
+            oss << " - <a href=https://github.com/solidoss/solidframe/tree/" << solid::version_vcs_commit() << ">" << solid::version_vcs_commit() << "</a>" << endl;
+            oss << endl;
+            oss << " <a href=https://www.qt.io>Qt</a>" << endl;
+            oss << endl;
+            oss << " <a href=https://www.boost.org>Boost</a>" << endl;
+            oss << endl;
+            oss << " <a href=https://www.openssl.org>OpenSSL</a>" << endl;
+            oss << endl;
+            oss << " <a href=https://github.com/USCiLab/cereal>Cereal</a>" << endl;
+            oss << endl;
+            oss << " <a href=https://github.com/google/snappy>Snappy</a>" << endl;
+            oss << endl;
+            oss << " <a href=https://zlib.net>zlib</a>" << endl;
+            oss << endl;
+            oss << " <a href=https://libzip.org>libzip</a>" << endl;
+            oss << endl;
+            oss << " <a href=https://github.com/jbeder/yaml-cpp>yaml</a>" << endl;
+            oss << endl;
+
+            pimpl_->about_form_.label_credits->setText(QString::fromStdString(oss.str()));
+        }
+        {
+            ostringstream oss;
+            oss << "MyApps.space Store, uses the LGPL, unchanged version of <a href=https://www.qt.io>Qt</a>"<<endl<<endl;
+            oss << "It uses the Qt libraries installed by the related open source project - <a href=https://github.com/vipalade/ola-client>MyApps.store Client</a>"<<endl<<endl;
+            oss << "In order to use MyApps.space Store application with your own Qt libraries, please follow the below steps:" << endl;
+            oss << " * Step 1" << endl;
+            oss << " * Step 2" << endl;
+            oss << " * Step 3" << endl;
+            oss << endl;
+            oss << "You can find a copy of the Qt source code here" << endl;
+
+            pimpl_->about_form_.label_qt->setText(QString::fromStdString(oss.str()));
+        }
+    }
+
 }
 
 MainWindow::~MainWindow() {}

@@ -443,8 +443,8 @@ void front_configure_service(Authenticator& _rauth, const Parameters& _params, f
     cfg.client.name_resolve_fnc = frame::mprpc::InternetResolverF(_rres, ola::front::default_port());
 
     cfg.client.connection_start_state     = frame::mprpc::ConnectionState::Passive;
-    cfg.pool_max_active_connection_count  = 2;
-    cfg.pool_max_pending_connection_count = 2;
+    cfg.pool_max_active_connection_count  = 4;
+    cfg.pool_max_pending_connection_count = 4;
 
     cfg.connection_stop_fnc = [&_rauth](frame::mprpc::ConnectionContext& _rctx) {
         _rauth.onConnectionStop(_rctx);

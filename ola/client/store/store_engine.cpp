@@ -110,7 +110,7 @@ void Engine::start(Configuration&& _rcfg)
     pimpl_->app_list_file_.load(pimpl_->config_.app_list_file_path_);
 
     auto req_ptr = make_shared<front::ListAppsRequest>();
-
+    solid_log(logger, Info, "Request all Applications");
     //A - all applications
     req_ptr->choice_ = 'A';
     auto lambda      = [this](
@@ -129,6 +129,7 @@ void Engine::start(Configuration&& _rcfg)
                     pimpl_->app_dq_.back().flag(ApplicationFlagE::ReviewRequest);
                 }
             }
+            solid_log(logger, Info, "Response all Applications: " << _rrecv_msg_ptr->app_vec_.size());
             requestAquired(_rsent_msg_ptr);
         } else if (!_rrecv_msg_ptr) {
             solid_log(logger, Info, "no ListAppsResponse: " << _rerror.message());
@@ -163,7 +164,7 @@ void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
                     pimpl_->app_dq_[it->second].flag(ApplicationFlagE::Aquired);
                 }
             }
-            //requestOwned(_rsent_msg_ptr);
+            solid_log(logger, Info, "Response Aquired Applications: " << _rrecv_msg_ptr->app_vec_.size());
             requestDefault(_rsent_msg_ptr);
         } else if (!_rrecv_msg_ptr) {
             solid_log(logger, Info, "no ListAppsResponse: " << _rerror.message());
@@ -192,6 +193,7 @@ void Engine::requestDefault(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
                     pimpl_->app_dq_[it->second].flag(ApplicationFlagE::Default);
                 }
             }
+            solid_log(logger, Info, "Response Default Applications: " << _rrecv_msg_ptr->app_vec_.size());
             requestMore(0, pimpl_->config_.start_fetch_count_);
         } else if (!_rrecv_msg_ptr) {
             solid_log(logger, Info, "no ListAppsResponse: " << _rerror.message());
@@ -233,6 +235,7 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
                           std::shared_ptr<ola::front::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
                           ErrorConditionT const&                                        _rerror) mutable {
             if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
+                solid_log(logger, Info, "Response Application: " << _rrecv_msg_ptr->configuration_.property_vec_[0].second<< " "<< _rrecv_msg_ptr->image_blob_.size());
                 pimpl_->config_.on_fetch_fnc_(i, pimpl_->fetch_count_,
                     std::move(_rrecv_msg_ptr->configuration_.property_vec_[0].second), //name
                     std::move(_rrecv_msg_ptr->configuration_.property_vec_[1].second), //company
