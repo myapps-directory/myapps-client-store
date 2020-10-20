@@ -22,7 +22,7 @@
 #include <chrono>
 #include <iomanip>
 
-#include "ola/client/utility/version.hpp"
+#include "ola/common/utility/version.hpp"
 
 #include "solid/system/cstring.hpp"
 #include "solid/system/log.hpp"
@@ -531,9 +531,9 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
         using namespace std;
         ostringstream oss;
 
-        oss << client::utility::VERSION_MAJOR << '.' << client::utility::VERSION_MINOR;
+        oss << utility::VERSION_MAJOR << '.' << utility::VERSION_MINOR;
         //oss << " - " << client::utility::version_vcs_branch();
-        oss << " - <a href=https://github.com/vipalade/ola-client-store/tree/" << client::utility::version_vcs_commit() << ">" << client::utility::version_vcs_commit() << "</a>";
+        oss << " - <a href=https://github.com/vipalade/ola-client-store/tree/" << utility::version_vcs_commit() << ">" << utility::version_vcs_commit() << "</a>";
 
         pimpl_->about_form_.label_version->setText(QString::fromStdString(oss.str()));
     }
