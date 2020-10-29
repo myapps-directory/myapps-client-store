@@ -526,6 +526,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
             pimpl_->showWidget(pimpl_->store_form_.listWidget);
         });
 
+    pimpl_->about_form_.tabWidget->setCurrentIndex(0);
     pimpl_->about_form_.label_title->setText("MyApps.space Store");
     {
         using namespace std;
