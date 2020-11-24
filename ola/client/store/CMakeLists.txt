@@ -148,6 +148,6 @@ if(${Qt5Widgets_FOUND})
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/ola_store.build.yml $<TARGET_FILE_DIR:ola_client_store>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_SSL_DLL} $<TARGET_FILE_DIR:ola_client_store>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_CRYPTO_DLL} $<TARGET_FILE_DIR:ola_client_store>
-        COMMAND ${CMAKE_COMMAND} -DINFILE="${CMAKE_CURRENT_SOURCE_DIR}/ola_upload.in"  -DOUTFILE=$<TARGET_FILE_DIR:ola_client_store>/ola_upload -DPROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}" -P "${CMAKE_CURRENT_SOURCE_DIR}/GenericConfigureFile.cmake"
+        COMMAND ${CMAKE_COMMAND} -DINFILE="${CMAKE_CURRENT_SOURCE_DIR}/ola_upload.in"  -DOUTFILE=$<TARGET_FILE_DIR:ola_client_store>/ola_upload -DPROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}" -P "${CMAKE_SOURCE_DIR}/generic-configure-file.cmake"
     )
 endif()
