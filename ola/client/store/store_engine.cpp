@@ -109,14 +109,14 @@ void Engine::start(Configuration&& _rcfg)
 
     pimpl_->app_list_file_.load(pimpl_->config_.app_list_file_path_);
 
-    auto req_ptr = make_shared<front::ListAppsRequest>();
+    auto req_ptr = make_shared<front::main::ListAppsRequest>();
     solid_log(logger, Info, "Request all Applications");
     //A - all applications
     req_ptr->choice_ = 'A';
     auto lambda      = [this](
                       frame::mprpc::ConnectionContext&          _rctx,
-                      std::shared_ptr<front::ListAppsRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<front::ListAppsResponse>& _rrecv_msg_ptr,
+                      std::shared_ptr<front::main::ListAppsRequest>&  _rsent_msg_ptr,
+                      std::shared_ptr<front::main::ListAppsResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                    _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             for (auto& app : _rrecv_msg_ptr->app_vec_) {
@@ -146,7 +146,7 @@ void Engine::stop()
 {
 }
 
-void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
+void Engine::requestAquired(std::shared_ptr<front::main::ListAppsRequest>& _rreq_msg)
 {
     auto req_ptr = std::move(_rreq_msg);
 
@@ -154,8 +154,8 @@ void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
     req_ptr->choice_ = 'a';
     auto lambda      = [this](
                       frame::mprpc::ConnectionContext&          _rctx,
-                      std::shared_ptr<front::ListAppsRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<front::ListAppsResponse>& _rrecv_msg_ptr,
+                      std::shared_ptr<front::main::ListAppsRequest>&  _rsent_msg_ptr,
+                      std::shared_ptr<front::main::ListAppsResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                    _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             for (auto& a : _rrecv_msg_ptr->app_vec_) {
@@ -175,7 +175,7 @@ void Engine::requestAquired(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
     pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
 }
 
-void Engine::requestDefault(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
+void Engine::requestDefault(std::shared_ptr<front::main::ListAppsRequest>& _rreq_msg)
 {
     auto req_ptr = std::move(_rreq_msg);
 
@@ -183,8 +183,8 @@ void Engine::requestDefault(std::shared_ptr<front::ListAppsRequest>& _rreq_msg)
     req_ptr->choice_ = 'd';
     auto lambda      = [this](
                       frame::mprpc::ConnectionContext&          _rctx,
-                      std::shared_ptr<front::ListAppsRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<front::ListAppsResponse>& _rrecv_msg_ptr,
+                      std::shared_ptr<front::main::ListAppsRequest>&  _rsent_msg_ptr,
+                      std::shared_ptr<front::main::ListAppsResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                    _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             for (auto& a : _rrecv_msg_ptr->app_vec_) {
@@ -220,7 +220,7 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
     }
     for (size_t i = _index; i < last_index; ++i) {
 
-        auto req_ptr = make_shared<ola::front::FetchBuildConfigurationRequest>();
+        auto req_ptr = make_shared<ola::front::main::FetchBuildConfigurationRequest>();
         string build_request;
         {
             lock_guard<mutex> lock(pimpl_->mutex_);
@@ -231,8 +231,8 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
 
         auto lambda = [this, i, build_request](
                           frame::mprpc::ConnectionContext&                              _rctx,
-                          std::shared_ptr<ola::front::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
-                          std::shared_ptr<ola::front::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
+                          std::shared_ptr<ola::front::main::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
+                          std::shared_ptr<ola::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
                           ErrorConditionT const&                                        _rerror) mutable {
             if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
                 solid_log(logger, Info, "Response Application: " << _rrecv_msg_ptr->configuration_.property_vec_[0].second<< " "<< _rrecv_msg_ptr->image_blob_.size());
@@ -298,8 +298,8 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
 {
     auto lambda = [this, _fetch_fnc](
         frame::mprpc::ConnectionContext& _rctx,
-        std::shared_ptr<ola::front::FetchBuildConfigurationRequest>& _rsent_msg_ptr,
-        std::shared_ptr<ola::front::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
+        std::shared_ptr<ola::front::main::FetchBuildConfigurationRequest>& _rsent_msg_ptr,
+        std::shared_ptr<ola::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
         ErrorConditionT const& _rerror) {
         
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
@@ -311,7 +311,7 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
         _fetch_fnc(_rrecv_msg_ptr);
     };
 
-    auto req_ptr = make_shared<ola::front::FetchBuildConfigurationRequest>();
+    auto req_ptr = make_shared<ola::front::main::FetchBuildConfigurationRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
@@ -336,14 +336,14 @@ void Engine::fetchItemEntries(const size_t _index, OnFetchAppItemsT _fetch_fnc)
 {
     auto lambda = [this, _fetch_fnc](
         frame::mprpc::ConnectionContext& _rctx,
-        std::shared_ptr<ola::front::FetchAppRequest>& _rsent_msg_ptr,
-        std::shared_ptr<ola::front::FetchAppResponse>& _rrecv_msg_ptr,
+        std::shared_ptr<ola::front::main::FetchAppRequest>& _rsent_msg_ptr,
+        std::shared_ptr<ola::front::main::FetchAppResponse>& _rrecv_msg_ptr,
         ErrorConditionT const& _rerror) {
 
             _fetch_fnc(_rrecv_msg_ptr);
     };
 
-    auto req_ptr = make_shared<ola::front::FetchAppRequest>();
+    auto req_ptr = make_shared<ola::front::main::FetchAppRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
@@ -358,8 +358,8 @@ void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItem
 {
     auto lambda = [this, _fetch_fnc](
                       frame::mprpc::ConnectionContext&                _rctx,
-                      std::shared_ptr<ola::front::AcquireAppRequest>& _rsent_msg_ptr,
-                      std::shared_ptr<ola::front::Response>&          _rrecv_msg_ptr,
+                      std::shared_ptr<ola::front::store::AcquireAppRequest>& _rsent_msg_ptr,
+                      std::shared_ptr<ola::front::core::Response>&          _rrecv_msg_ptr,
                       ErrorConditionT const&                          _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             _fetch_fnc(_rsent_msg_ptr->acquire_);
@@ -367,7 +367,7 @@ void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItem
             _fetch_fnc(false);
         }
     };
-    auto req_ptr = make_shared<ola::front::AcquireAppRequest>();
+    auto req_ptr = make_shared<ola::front::store::AcquireAppRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
@@ -400,14 +400,14 @@ void Engine::changeAppItemState(
 ) {
     auto lambda = [this, _on_response_fnc](
         frame::mprpc::ConnectionContext& _rctx,
-        std::shared_ptr<ola::front::ChangeAppItemStateRequest>& _rsent_msg_ptr,
-        std::shared_ptr<ola::front::Response>& _rrecv_msg_ptr,
+        std::shared_ptr<ola::front::main::ChangeAppItemStateRequest>& _rsent_msg_ptr,
+        std::shared_ptr<ola::front::core::Response>& _rrecv_msg_ptr,
         ErrorConditionT const& _rerror) {
 
             _on_response_fnc(_rrecv_msg_ptr);
     };
 
-    auto req_ptr = make_shared<ola::front::ChangeAppItemStateRequest>();
+    auto req_ptr = make_shared<ola::front::main::ChangeAppItemStateRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;

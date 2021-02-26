@@ -30,6 +30,7 @@
 #include "solid/frame/mprpc/mprpcconfiguration.hpp"
 #include "solid/frame/mprpc/mprpcservice.hpp"
 #include "solid/frame/mprpc/mprpcsocketstub_openssl.hpp"
+#include "solid/frame/mprpc/mprpcprotocol_serialization_v3.hpp"
 
 #include "ola/common/utility/encode.hpp"
 
@@ -58,6 +59,7 @@
 using namespace ola;
 using namespace solid;
 using namespace std;
+using namespace ola::front;
 using namespace ola::client::store;
 namespace fs = boost::filesystem;
 
@@ -172,11 +174,11 @@ struct Authenticator {
 
     void onAuthFileChange();
 
-    std::shared_ptr<front::AuthRequest> loadAuth(string& _rendpoint)
+    std::shared_ptr<core::AuthRequest> loadAuth(string& _rendpoint)
     {
         string user, token;
         if (loadAuth(_rendpoint, user, token)) {
-            auto ptr   = make_shared<front::AuthRequest>();
+            auto ptr   = make_shared<core::AuthRequest>();
             ptr->pass_ = token;
             return ptr;
         } else {
@@ -190,8 +192,8 @@ struct Authenticator {
 
     void onAuthResponse(
         frame::mprpc::ConnectionContext&      _rctx,
-        std::shared_ptr<front::AuthRequest>&  _rsent_msg_ptr,
-        std::shared_ptr<front::AuthResponse>& _rrecv_msg_ptr,
+        std::shared_ptr<core::AuthRequest>&  _rsent_msg_ptr,
+        std::shared_ptr<core::AuthResponse>& _rrecv_msg_ptr,
         ErrorConditionT const&                _rerror);
 };
 
@@ -395,7 +397,7 @@ bool Parameters::parse(ULONG argc, PWSTR* argv)
         ;
         // clang-format on
         variables_map vm;
-        store(parse_command_line(argc, argv, desc), vm);
+        boost::program_options::store(parse_command_line(argc, argv, desc), vm);
         notify(vm);
         if (vm.count("help")) {
             cout << desc << "\n";
@@ -423,22 +425,22 @@ void complete_message(
 //-----------------------------------------------------------------------------
 // Front
 //-----------------------------------------------------------------------------
-struct FrontSetup {
-    template <class T>
-    void operator()(front::ProtocolT& _rprotocol, TypeToType<T> _t2t, const front::ProtocolT::TypeIdT& _rtid)
-    {
-        _rprotocol.registerMessage<T>(complete_message<T>, _rtid);
-    }
-};
 
 void front_configure_service(Authenticator& _rauth, const Parameters& _params, frame::mprpc::ServiceT& _rsvc, AioSchedulerT& _rsch, frame::aio::Resolver& _rres)
 {
-    auto                        proto = front::ProtocolT::create();
+    auto                        proto = frame::mprpc::serialization_v3::create_protocol<reflection::v1::metadata::Variant, ola::front::ProtocolTypeIndexT>(
+        ola::utility::metadata_factory,
+        [&](auto& _rmap) {
+            auto lambda = [&](const ola::front::ProtocolTypeIndexT _id, const std::string_view _name, auto const& _rtype) {
+                using TypeT = typename std::decay_t<decltype(_rtype)>::TypeT;
+                _rmap.template registerMessage<TypeT>(_id, _name, complete_message<TypeT>);
+            };
+            ola::front::core::configure_protocol(lambda);
+            ola::front::main::configure_protocol(lambda);
+            ola::front::store::configure_protocol(lambda);
+        }
+    );
     frame::mprpc::Configuration cfg(_rsch, proto);
-
-    front::protocol_setup_init(FrontSetup(), *proto);
-    front::protocol_setup(FrontSetup(), *proto);
-    front::protocol_setup_store(FrontSetup(), *proto);
 
     cfg.client.name_resolve_fnc = frame::mprpc::InternetResolverF(_rres, ola::front::default_port());
 
@@ -476,11 +478,11 @@ void front_configure_service(Authenticator& _rauth, const Parameters& _params, f
 
 void Authenticator::onConnectionStart(frame::mprpc::ConnectionContext& _ctx)
 {
-    auto req_ptr = std::make_shared<front::InitRequest>();
+    auto req_ptr = std::make_shared<store::InitRequest>();
     auto lambda  = [this](
                       frame::mprpc::ConnectionContext&      _rctx,
-                      std::shared_ptr<front::InitRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<front::InitResponse>& _rrecv_msg_ptr,
+                      std::shared_ptr<store::InitRequest>&  _rsent_msg_ptr,
+                      std::shared_ptr<core::InitResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                _rerror) {
         if (_rrecv_msg_ptr) {
             if (_rrecv_msg_ptr->error_ == 0) {
@@ -522,8 +524,8 @@ void Authenticator::onAuthFileChange()
                 if (auth_ptr) {
                     auto lambda = [this](
                         frame::mprpc::ConnectionContext& _rctx,
-                        std::shared_ptr<front::AuthRequest>& _rsent_msg_ptr,
-                        std::shared_ptr<front::AuthResponse>& _rrecv_msg_ptr,
+                        std::shared_ptr<core::AuthRequest>& _rsent_msg_ptr,
+                        std::shared_ptr<core::AuthResponse>& _rrecv_msg_ptr,
                         ErrorConditionT const& _rerror) {
                             onAuthResponse(_rctx, _rsent_msg_ptr, _rrecv_msg_ptr, _rerror);
                     };
@@ -560,8 +562,8 @@ void Authenticator::onConnectionInit(frame::mprpc::ConnectionContext& _rctx)
         if (auth_ptr) {
             auto lambda = [this](
                               frame::mprpc::ConnectionContext&      _rctx,
-                              std::shared_ptr<front::AuthRequest>&  _rsent_msg_ptr,
-                              std::shared_ptr<front::AuthResponse>& _rrecv_msg_ptr,
+                              std::shared_ptr<core::AuthRequest>&  _rsent_msg_ptr,
+                              std::shared_ptr<core::AuthResponse>& _rrecv_msg_ptr,
                               ErrorConditionT const&                _rerror) {
                 onAuthResponse(_rctx, _rsent_msg_ptr, _rrecv_msg_ptr, _rerror);
             };
@@ -582,8 +584,8 @@ void Authenticator::onConnectionStop(frame::mprpc::ConnectionContext& _rctx)
 
 void Authenticator::onAuthResponse(
     frame::mprpc::ConnectionContext&      _rctx,
-    std::shared_ptr<front::AuthRequest>&  _rsent_msg_ptr,
-    std::shared_ptr<front::AuthResponse>& _rrecv_msg_ptr,
+    std::shared_ptr<core::AuthRequest>&  _rsent_msg_ptr,
+    std::shared_ptr<core::AuthResponse>& _rrecv_msg_ptr,
     ErrorConditionT const&                _rerror)
 {
     if (!_rrecv_msg_ptr) {

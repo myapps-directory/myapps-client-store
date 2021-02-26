@@ -5,8 +5,6 @@
 #include <vector>
 #include "solid/system/pimpl.hpp"
 #include "solid/frame/mprpc/mprpcservice.hpp"
-#include "ola/common/ola_front_protocol_init.hpp"
-#include "ola/common/ola_front_protocol.hpp"
 #include "ola/private/ola_front_protocol_store.hpp"
 #include <boost/filesystem.hpp>
 
@@ -53,19 +51,19 @@ class Engine{
     struct Implementation;
     solid::PimplT<Implementation> pimpl_;
 public:
-    using OnFetchItemDataT = std::function<void(std::shared_ptr<ola::front::FetchBuildConfigurationResponse>&)>;
-    using OnFetchAppItemsT = std::function<void(std::shared_ptr<ola::front::FetchAppResponse>&)>;
+    using OnFetchItemDataT = std::function<void(std::shared_ptr<ola::front::main::FetchBuildConfigurationResponse>&)>;
+    using OnFetchAppItemsT = std::function<void(std::shared_ptr<ola::front::main::FetchAppResponse>&)>;
     using OnAcquireItemT = std::function<void(bool)>;
-    using OnResponseT = std::function<void(std::shared_ptr<ola::front::Response>&)>;
+    using OnResponseT = std::function<void(std::shared_ptr<ola::front::core::Response>&)>;
 
     Engine(solid::frame::mprpc::ServiceT& _rrpc_service);
     ~Engine();
     void start(Configuration&& _rcfg);
     void stop();
     
-    void requestAquired(std::shared_ptr<front::ListAppsRequest> &_rreq_msg);
-    void requestOwned(std::shared_ptr<front::ListAppsRequest>& _rreq_msg);
-    void requestDefault(std::shared_ptr<front::ListAppsRequest>& _rreq_msg);
+    void requestAquired(std::shared_ptr<front::main::ListAppsRequest> &_rreq_msg);
+    void requestOwned(std::shared_ptr<front::main::ListAppsRequest>& _rreq_msg);
+    void requestDefault(std::shared_ptr<front::main::ListAppsRequest>& _rreq_msg);
 
     bool requestMore(const size_t _index, const size_t _count_hint);
 
