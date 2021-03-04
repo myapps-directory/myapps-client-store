@@ -399,8 +399,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     , pimpl_(solid::make_pimpl<Data>(_rengine, this))
 {
     qRegisterMetaType<VectorPairStringT>("VectorPairStringT");
-    qRegisterMetaType<std::shared_ptr<ola::front::FetchBuildConfigurationResponse>>("std::shared_ptr<ola::front::FetchBuildConfigurationResponse>");
-    qRegisterMetaType<std::shared_ptr<ola::front::FetchAppResponse>>("std::shared_ptr<ola::front::FetchAppResponse>");
+    qRegisterMetaType<std::shared_ptr<ola::front::main::FetchBuildConfigurationResponse>>("std::shared_ptr<ola::front::FetchBuildConfigurationResponse>");
+    qRegisterMetaType<std::shared_ptr<ola::front::main::FetchAppResponse>>("std::shared_ptr<ola::front::FetchAppResponse>");
 
     setWindowFlags(windowFlags() & (~Qt::WindowMaximizeButtonHint));
 
@@ -675,13 +675,13 @@ void MainWindow::showItem(int _index)
 
     pimpl_->engine().fetchItemEntries(
         item.engine_index_,
-        [this, index = _index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+        [this, index = _index](std::shared_ptr<ola::front::main::FetchAppResponse>& _response_ptr) {
             //called on another thread - need to move the data onto GUI thread
             emit itemEntries(index, _response_ptr);
         });
 }
 
-void MainWindow::itemDataSlot(int _index, std::shared_ptr<ola::front::FetchBuildConfigurationResponse> _response_ptr)
+void MainWindow::itemDataSlot(int _index, std::shared_ptr<ola::front::main::FetchBuildConfigurationResponse> _response_ptr)
 {
     if (_response_ptr && _response_ptr->error_ == 0) {
         auto& item = pimpl_->list_model_.item(_index);
@@ -738,7 +738,7 @@ const char* build_status_to_image_name(const ola::utility::AppItemStateE _status
     }
 }
 
-void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr){
+void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::main::FetchAppResponse> _response_ptr){
     using namespace ola::utility;
 
     if (!_response_ptr) return;
@@ -852,7 +852,7 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::FetchAp
     }
 }
 
-void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<ola::front::FetchAppResponse> _response_ptr)
+void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<ola::front::main::FetchAppResponse> _response_ptr)
 {
     pimpl_->configure_form_.treeWidget->setColumnCount(1);
     pimpl_->configure_form_.treeWidget->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -1160,12 +1160,12 @@ void MainWindow::buildChangedSlot(int _index)
                 pimpl_->engine().changeAppItemState(
                     item.engine_index_,
                     entry, static_cast<int>(AppItemStateE::ReviewStarted),
-                    [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::Response>& _response_ptr) {
+                    [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::core::Response>& _response_ptr) {
                     solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
                     pimpl_->engine().fetchItemEntries(
                         engine_index,
-                        [this, index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+                        [this, index](std::shared_ptr<ola::front::main::FetchAppResponse>& _response_ptr) {
                             //called on another thread - need to move the data onto GUI thread
                             emit itemEntries(index, _response_ptr);
                         });
@@ -1191,7 +1191,7 @@ void MainWindow::buildChangedSlot(int _index)
         pimpl_->engine().fetchItemData(
             item.engine_index_,
             build_id,
-            [this, index = pimpl_->current_item_](std::shared_ptr<ola::front::FetchBuildConfigurationResponse>& _response_ptr) {
+            [this, index = pimpl_->current_item_](std::shared_ptr<ola::front::main::FetchBuildConfigurationResponse>& _response_ptr) {
             //called on another thread - need to move the data onto GUI thread
             emit itemData(index, _response_ptr);
         });
@@ -1334,12 +1334,12 @@ void MainWindow::configureStateChangedSlot(int _index) {
         pimpl_->engine().changeAppItemState(
             item.engine_index_,
             item_entry, req_state,
-            [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::Response>& _response_ptr) {
+            [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::core::Response>& _response_ptr) {
                 solid_log(logger, Verbose, "ChangeAppItemState response: "<<_response_ptr->error_<<" message: "<<_response_ptr->message_);
                 
                 pimpl_->engine().fetchItemEntries(
                     engine_index,
-                    [this, index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+                    [this, index](std::shared_ptr<ola::front::main::FetchAppResponse>& _response_ptr) {
                         //called on another thread - need to move the data onto GUI thread
                         emit itemEntries(index, _response_ptr);
                     });
@@ -1359,12 +1359,12 @@ void MainWindow::onReviewAcceptButtonClicked(bool _checked) {
     pimpl_->engine().changeAppItemState(
         item.engine_index_,
         entry, static_cast<int>(AppItemStateE::ReviewAccepted),
-        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::Response>& _response_ptr) {
+        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::core::Response>& _response_ptr) {
         solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
         pimpl_->engine().fetchItemEntries(
             engine_index,
-            [this, index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+            [this, index](std::shared_ptr<ola::front::main::FetchAppResponse>& _response_ptr) {
                 //called on another thread - need to move the data onto GUI thread
                 emit itemEntries(index, _response_ptr);
             });
@@ -1383,12 +1383,12 @@ void MainWindow::onReviewRejectButtonClicked(bool _checked) {
     pimpl_->engine().changeAppItemState(
         item.engine_index_,
         entry, static_cast<int>(AppItemStateE::ReviewRejected),
-        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::Response>& _response_ptr) {
+        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::core::Response>& _response_ptr) {
         solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
         pimpl_->engine().fetchItemEntries(
             engine_index,
-            [this, index](std::shared_ptr<ola::front::FetchAppResponse>& _response_ptr) {
+            [this, index](std::shared_ptr<ola::front::main::FetchAppResponse>& _response_ptr) {
                 //called on another thread - need to move the data onto GUI thread
                 emit itemEntries(index, _response_ptr);
             });
