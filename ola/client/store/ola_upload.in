@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+if [[ $# -ne 4 ]] ; then
+    echo 'Usage: ola_upload A|b|m APPID BUILDID MEDIAID'
+    echo 'Example: ./ola_upload A 8W9Hu1MnHPoifnCw7lUWWVpLEhDunsUi9cAXl1h6fec= b01 m01'
+    exit 0
+fi
+
 OPTION=$1
 APPID=$2
 BUILDID=$3
