@@ -98,6 +98,10 @@ if(${Qt5Widgets_FOUND})
             ${SYS_DYNAMIC_LOAD_LIB}
         )
 
+        target_include_directories(ola_client_launcher PRIVATE
+            ${Boost_INCLUDE_DIRS}
+        )
+
     elseif(APPLE)
         add_executable(
             ola_store_store
@@ -132,8 +136,8 @@ if(${Qt5Widgets_FOUND})
         SolidFrame::solid_frame_mprpc
         SolidFrame::solid_frame_aio_openssl
         SolidFrame::solid_serialization_v3
-        ${Boost_PROGRAM_OPTIONS_LIBRARY}
-        ${Boost_SYSTEM_LIBRARY}
+        Boost::program_options
+        Boost::system
         Qt5::Widgets
         ${SNAPPY_LIB}
         ${SYS_BASIC_LIBS}

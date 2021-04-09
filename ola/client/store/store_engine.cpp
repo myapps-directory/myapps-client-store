@@ -358,7 +358,7 @@ void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItem
 {
     auto lambda = [this, _fetch_fnc](
                       frame::mprpc::ConnectionContext&                _rctx,
-                      std::shared_ptr<ola::front::store::AcquireAppRequest>& _rsent_msg_ptr,
+                      std::shared_ptr<ola::front::main::AcquireAppRequest>& _rsent_msg_ptr,
                       std::shared_ptr<ola::front::core::Response>&          _rrecv_msg_ptr,
                       ErrorConditionT const&                          _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
@@ -367,7 +367,7 @@ void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItem
             _fetch_fnc(false);
         }
     };
-    auto req_ptr = make_shared<ola::front::store::AcquireAppRequest>();
+    auto req_ptr = make_shared<ola::front::main::AcquireAppRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
