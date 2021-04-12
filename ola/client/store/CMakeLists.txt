@@ -53,7 +53,7 @@ if(${Qt5Widgets_FOUND})
     )
 
     if(WIN32)
-        set_source_files_properties(store_main.cpp PROPERTIES COMPILE_FLAGS -bigobj)
+        set_source_files_properties(store_main.cpp PROPERTIES COMPILE_FLAGS "-DOLA_FRONT_URL=\\\"${OLA_FRONT_URL}\\\" -bigobj")
         add_executable(
             ola_client_store
             WIN32
