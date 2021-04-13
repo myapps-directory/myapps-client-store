@@ -16,6 +16,7 @@
 #include <QTextLayout>
 #include <QToolBar>
 #include <QToolButton>
+#include <QScrollBar>
 #include <algorithm>
 #include <stack>
 #include <vector>
@@ -421,6 +422,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->list_form_.listView->setWrapping(true);
     pimpl_->list_form_.listView->setModel(&pimpl_->list_model_);
     pimpl_->list_form_.listView->setItemDelegate(&pimpl_->list_delegate_);
+    pimpl_->list_form_.listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    pimpl_->list_form_.listView->verticalScrollBar()->setSingleStep(5);
 
     pimpl_->about_form_.image_label->setPixmap(QPixmap(":/images/ola_store_bag.png"));
 
