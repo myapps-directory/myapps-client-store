@@ -53,7 +53,7 @@ if(${Qt5Widgets_FOUND})
     )
 
     if(WIN32)
-        set_source_files_properties(store_main.cpp PROPERTIES COMPILE_FLAGS -bigobj)
+        set_source_files_properties(store_main.cpp PROPERTIES COMPILE_FLAGS "-DOLA_FRONT_URL=\\\"${OLA_FRONT_URL}\\\" -bigobj")
         add_executable(
             ola_client_store
             WIN32
@@ -98,6 +98,10 @@ if(${Qt5Widgets_FOUND})
             ${SYS_DYNAMIC_LOAD_LIB}
         )
 
+        target_include_directories(ola_client_launcher PRIVATE
+            ${Boost_INCLUDE_DIRS}
+        )
+
     elseif(APPLE)
         add_executable(
             ola_store_store
@@ -132,8 +136,8 @@ if(${Qt5Widgets_FOUND})
         SolidFrame::solid_frame_mprpc
         SolidFrame::solid_frame_aio_openssl
         SolidFrame::solid_serialization_v3
-        ${Boost_PROGRAM_OPTIONS_LIBRARY}
-        ${Boost_SYSTEM_LIBRARY}
+        Boost::program_options
+        Boost::system
         Qt5::Widgets
         ${SNAPPY_LIB}
         ${SYS_BASIC_LIBS}
@@ -144,7 +148,7 @@ if(${Qt5Widgets_FOUND})
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Core> $<TARGET_FILE_DIR:ola_client_store>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Gui> $<TARGET_FILE_DIR:ola_client_store>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Widgets> $<TARGET_FILE_DIR:ola_client_store>
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/certs  $<TARGET_FILE_DIR:ola_client_store>/certs
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/ola/client/utility/certs  $<TARGET_FILE_DIR:ola_client_store>/certs
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/ola_store.build.yml $<TARGET_FILE_DIR:ola_client_store>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_SSL_DLL} $<TARGET_FILE_DIR:ola_client_store>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_CRYPTO_DLL} $<TARGET_FILE_DIR:ola_client_store>

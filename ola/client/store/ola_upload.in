@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+if [[ $# -ne 4 ]] ; then
+    echo 'Usage: ola_upload A|b|m APPID BUILDID MEDIAID'
+    echo 'Example: ./ola_upload A 8W9Hu1MnHPoifnCw7lUWWVpLEhDunsUi9cAXl1h6fec= b01 m01'
+    exit 0
+fi
+
 OPTION=$1
 APPID=$2
 BUILDID=$3
@@ -20,7 +26,7 @@ createBuild()
 
     sed "s/MEDIAID/$MEDIAID/g" ola_store.build.yml > tmp/ola_store.build.yml
     
-    echo -ne "create build $APPID $BUILDID tmp/ola_store.build.yml tmp/build tmp/ola_store_bag.png\nq\n" | ola_client_cli
+    echo -ne "create build $APPID $BUILDID tmp/ola_store.build.yml tmp/build tmp/ola_store_bag.png\nq\n" | ola_client_cli --no-history
 }
 
 createMedia()
@@ -38,7 +44,7 @@ createMedia()
         magick convert -resize 384x216 "$filename" "tmp/media/$(basename "$filename" .png)t.jpg"
     done
 
-    echo -ne "create media $APPID $MEDIAID tmp/media\nq\n" | ola_client_cli
+    echo -ne "create media $APPID $MEDIAID tmp/media\nq\n" | ola_client_cli --no-history
 }
 
 rm -rf tmp
