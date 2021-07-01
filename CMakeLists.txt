@@ -78,6 +78,8 @@ include(cmake/build-snappy.cmake)
 
 include(cmake/build-config.cmake)
 
+include(cmake/build-libzip.cmake)
+
 if(UNIX AND NOT APPLE)
     set(LINUX TRUE)
 endif()

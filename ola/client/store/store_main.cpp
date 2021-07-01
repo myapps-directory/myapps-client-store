@@ -629,7 +629,7 @@ void front_configure_service(Authenticator& _rauth, const Parameters& _params, f
         _rauth.onConnectionStop(_rctx);
     };
     cfg.client.connection_start_fnc = [&_rauth](frame::mprpc::ConnectionContext& _rctx) {
-        _rctx.anyTuple() = std::make_tuple(core::version, main::version, store::version, ola::utility::version);
+        _rctx.any() = std::make_tuple(core::version, main::version, store::version, ola::utility::version);
         _rauth.onConnectionStart(_rctx);
     };
 
