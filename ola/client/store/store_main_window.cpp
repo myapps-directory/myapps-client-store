@@ -641,6 +641,10 @@ void MainWindow::showItem(int _index)
     pimpl_->item_form_.name_label->setText(item.name_);
     pimpl_->item_form_.company_label->setText(item.company_);
     pimpl_->item_form_.brief_label->setText(item.brief_);
+    if (item.data_ptr_) {
+        pimpl_->item_form_.description_label->setText(QString::fromStdString(item.data_ptr_->configuration_.property_vec_[3].second));
+        pimpl_->item_form_.release_label->setText(QString::fromStdString(item.data_ptr_->configuration_.property_vec_[4].second));
+    }
 
     pimpl_->item_form_.media_list_widget->hide();
     pimpl_->item_form_.media_list_widget->clear();
@@ -672,9 +676,16 @@ void MainWindow::showItem(int _index)
     }
 #endif
 
-    pimpl_->item_form_.comboBox->setEnabled(enable_combo);
+    
     pimpl_->item_form_.review_accept_button->setEnabled(enable_combo);
     pimpl_->item_form_.review_reject_button->setEnabled(enable_combo);
+    if (has_application_flag(item.flags_, ApplicationFlagE::Owned)) {
+        pimpl_->item_form_.configure_button->show();
+    }
+    else {
+        pimpl_->item_form_.configure_button->hide();
+    }
+    pimpl_->item_form_.comboBox->setEnabled(enable_combo);
 
     pimpl_->engine().fetchItemEntries(
         item.engine_index_,
