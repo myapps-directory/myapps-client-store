@@ -306,6 +306,7 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
             for (auto& e : _rrecv_msg_ptr->configuration_.media_.entry_vec_) {
                 e.thumbnail_path_ = pimpl_->localMediaPath(e.thumbnail_path_, _rrecv_msg_ptr->media_storage_id_);
                 e.path_ = pimpl_->localMediaPath(e.path_, _rrecv_msg_ptr->media_storage_id_);
+                solid_log(logger, Info, "Thumbnail path: " << e.thumbnail_path_);
             }
         }
         _fetch_fnc(_rrecv_msg_ptr);
