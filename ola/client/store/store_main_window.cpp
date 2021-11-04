@@ -641,6 +641,9 @@ void MainWindow::showItem(int _index)
     pimpl_->item_form_.name_label->setText(item.name_);
     pimpl_->item_form_.company_label->setText(item.company_);
     pimpl_->item_form_.brief_label->setText(item.brief_);
+    pimpl_->item_form_.description_label->setText("");
+    pimpl_->item_form_.release_label->setText("");
+
     if (item.data_ptr_) {
         pimpl_->item_form_.description_label->setText(QString::fromStdString(item.data_ptr_->configuration_.property_vec_[3].second));
         pimpl_->item_form_.release_label->setText(QString::fromStdString(item.data_ptr_->configuration_.property_vec_[4].second));
