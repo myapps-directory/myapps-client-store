@@ -1,7 +1,7 @@
 <RCC>
     <qresource prefix="/">
-        <file>images/ola_store_bag.ico</file>
-        <file>images/ola_store_bag.png</file>
+        <file>images/store_bag.ico</file>
+        <file>images/store_bag.png</file>
         <file>images/owned.png</file>
         <file>images/acquired.png</file>
         <file>images/empty.png</file>

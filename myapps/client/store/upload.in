@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 if [[ $# -ne 4 ]] ; then
-    echo 'Usage: ola_upload A|b|m APPID BUILDID MEDIAID'
-    echo 'Example: ./ola_upload A 8W9Hu1MnHPoifnCw7lUWWVpLEhDunsUi9cAXl1h6fec= b01 m01'
+    echo 'Usage: upload A|b|m APPID BUILDID MEDIAID'
+    echo 'Example: ./upload A 8W9Hu1MnHPoifnCw7lUWWVpLEhDunsUi9cAXl1h6fec= b01 m01'
     exit 0
 fi
 
@@ -19,14 +19,14 @@ createBuild()
     local BUILDID=$2
     local MEDIAID=$3
 
-    cp ola_client_launcher.exe tmp/build
-    cp ola_client_store.exe tmp/build
-	cp "$PROJECT_ROOT/ola/client/store/images/ola_store_bag.ico" tmp/build
-	cp "$PROJECT_ROOT/ola/client/store/images/ola_store_bag.png" tmp
+    cp myapps_client_launcher.exe tmp/build
+    cp myapps_client_store.exe tmp/build
+	cp "$PROJECT_ROOT/myapps/client/store/images/store_bag.ico" tmp/build
+	cp "$PROJECT_ROOT/myapps/client/store/images/store_bag.png" tmp
 
-    sed "s/MEDIAID/$MEDIAID/g" ola_store.build.yml > tmp/ola_store.build.yml
+    sed "s/MEDIAID/$MEDIAID/g" store.build.yml > tmp/store.build.yml
     
-    echo -ne "create build $APPID $BUILDID tmp/ola_store.build.yml tmp/build tmp/ola_store_bag.png\nq\n" | ola_client_cli --no-history
+    echo -ne "create build $APPID $BUILDID tmp/store.build.yml tmp/build tmp/store_bag.png\nq\n" | myapps_cli --no-history
 }
 
 createMedia()
@@ -44,7 +44,7 @@ createMedia()
         magick convert -resize 384x216 "$filename" "tmp/media/$(basename "$filename" .png)t.jpg"
     done
 
-    echo -ne "create media $APPID $MEDIAID tmp/media\nq\n" | ola_client_cli --no-history
+    echo -ne "create media $APPID $MEDIAID tmp/media\nq\n" | myapps_cli --no-history
 }
 
 rm -rf tmp

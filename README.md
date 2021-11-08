@@ -1,5 +1,5 @@
-# ola-client-store
-On Line Applications - client Store application
+# myapps-client-store
+MyApps.space client Store application
 
 
 ```BASH
