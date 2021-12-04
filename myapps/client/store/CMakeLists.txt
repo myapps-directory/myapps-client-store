@@ -48,14 +48,14 @@ if(${Qt5Widgets_FOUND})
         store_engine.hpp
         ${FORMS_HEADERS}
         ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/ola_upload.in
-        ${CMAKE_CURRENT_SOURCE_DIR}/ola_store.build.yml
+        ${CMAKE_CURRENT_SOURCE_DIR}/upload.in
+        ${CMAKE_CURRENT_SOURCE_DIR}/store.build.yml
     )
 
     if(WIN32)
-        set_source_files_properties(store_main.cpp PROPERTIES COMPILE_FLAGS "-DOLA_FRONT_URL=\\\"${OLA_FRONT_URL}\\\" -bigobj")
+        set_source_files_properties(store_main.cpp PROPERTIES COMPILE_FLAGS "-DMYAPPS_FRONT_URL=\\\"${MYAPPS_FRONT_URL}\\\" -bigobj")
         add_executable(
-            ola_client_store
+            myapps_store
             WIN32
             ${SRCS}
             store_main.rc
@@ -68,49 +68,49 @@ if(${Qt5Widgets_FOUND})
                 set(BUILD_TYPE "--release")
             endif()
             # execute windeployqt in a tmp directory after build
-            add_custom_command(TARGET ola_client_store
+            add_custom_command(TARGET myapps_store
                 POST_BUILD
-                #COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:ola_client_store>/windeployqt
+                #COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:myapps_store>/windeployqt
                 COMMAND set PATH=%PATH%$<SEMICOLON>${qt5_install_prefix}/bin
-                COMMAND Qt5::windeployqt ${BUILD_TYPE} "$<TARGET_FILE_DIR:ola_client_store>/$<TARGET_FILE_NAME:ola_client_store>"
+                COMMAND Qt5::windeployqt ${BUILD_TYPE} "$<TARGET_FILE_DIR:myapps_store>/$<TARGET_FILE_NAME:myapps_store>"
             )
 
             # copy deployment directory during installation
-            install(DIRECTORY $<TARGET_FILE_DIR:ola_client_store>//windeployqt/ DESTINATION bin PATTERN "windeployqt/*")
+            install(DIRECTORY $<TARGET_FILE_DIR:myapps_store>//windeployqt/ DESTINATION bin PATTERN "windeployqt/*")
         endif()
 
 
         add_executable(
-            ola_client_launcher
+            myapps_client_launcher
             WIN32
             launcher_main.cpp
         )
 
         add_executable(
-            ola_client_env
+            myapps_client_env
             env_main.cpp
         )
 
-        add_dependencies(ola_client_launcher ola_client_store)
+        add_dependencies(myapps_client_launcher myapps_store)
         target_link_libraries(
-            ola_client_launcher
+            myapps_client_launcher
             ${SYS_BASIC_LIBS}
             ${SYS_DYNAMIC_LOAD_LIB}
         )
 
-        target_include_directories(ola_client_launcher PRIVATE
+        target_include_directories(myapps_client_launcher PRIVATE
             ${Boost_INCLUDE_DIRS}
         )
 
     elseif(APPLE)
         add_executable(
-            ola_store_store
+            myapps_store
             MACOSX_BUNDLE
             ${SRCS}
         )
     else()
         add_executable(
-            ola_client_store
+            myapps_store
             ${SRCS}
         )
     endif()
@@ -118,21 +118,20 @@ if(${Qt5Widgets_FOUND})
     add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
         COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
         DEPENDS
-        ola_upload.in
-        ola_store.build.yml
+        upload.in
+        store.build.yml
         COMMENT "Force trigger rebuild when artifact files do change"
     )
 
-    add_dependencies(ola_client_store build-snappy build-cereal)
+    add_dependencies(myapps_store build-snappy build-cereal)
     
-    set_target_properties(
-        ola_client_store PROPERTIES
-        VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:ola_client_store>)
+    set_target_properties(myapps_store
+        PROPERTIES
+        VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:myapps_store>)
 
-    target_link_libraries(
-        ola_client_store
-        ola_client_utility
-		ola_utility
+    target_link_libraries( myapps_store
+        myapps_client_utility
+		myapps_utility
         SolidFrame::solid_frame_mprpc
         SolidFrame::solid_frame_aio_openssl
         SolidFrame::solid_serialization_v3
@@ -144,14 +143,14 @@ if(${Qt5Widgets_FOUND})
         ${SYS_DYNAMIC_LOAD_LIB}
     )
 
-    add_custom_command(TARGET ola_client_store POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Core> $<TARGET_FILE_DIR:ola_client_store>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Gui> $<TARGET_FILE_DIR:ola_client_store>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Widgets> $<TARGET_FILE_DIR:ola_client_store>
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/ola/client/utility/certs  $<TARGET_FILE_DIR:ola_client_store>/certs
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/ola_store.build.yml $<TARGET_FILE_DIR:ola_client_store>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_SSL_DLL} $<TARGET_FILE_DIR:ola_client_store>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_CRYPTO_DLL} $<TARGET_FILE_DIR:ola_client_store>
-        COMMAND ${CMAKE_COMMAND} -DINFILE="${CMAKE_CURRENT_SOURCE_DIR}/ola_upload.in"  -DOUTFILE=$<TARGET_FILE_DIR:ola_client_store>/ola_upload -DPROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}" -P "${CMAKE_SOURCE_DIR}/cmake/generic-configure-file.cmake"
+    add_custom_command(TARGET myapps_store POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Core> $<TARGET_FILE_DIR:myapps_store>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Gui> $<TARGET_FILE_DIR:myapps_store>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Widgets> $<TARGET_FILE_DIR:myapps_store>
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/myapps/client/utility/certs  $<TARGET_FILE_DIR:myapps_store>/certs
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/store.build.yml $<TARGET_FILE_DIR:myapps_store>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_SSL_DLL} $<TARGET_FILE_DIR:myapps_store>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_CRYPTO_DLL} $<TARGET_FILE_DIR:myapps_store>
+        COMMAND ${CMAKE_COMMAND} -DINFILE="${CMAKE_CURRENT_SOURCE_DIR}/upload.in"  -DOUTFILE=$<TARGET_FILE_DIR:myapps_store>/upload -DPROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}" -P "${CMAKE_SOURCE_DIR}/cmake/generic-configure-file.cmake"
     )
 endif()

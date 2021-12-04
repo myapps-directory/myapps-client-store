@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
-project(OlaClientStore VERSION 1.6)
+project(MyAppsStore VERSION 1.8)
 
 set(EXTERNAL_DIR "" CACHE PATH "External dependencies folder")
 
@@ -38,16 +38,16 @@ else()
     set(CONFIGURATION_TYPE "release")
 endif()
 
-set(OLA_FRONT_URL "front.myapps.space:443" CACHE STRING "OLA Front Default URL")
+set(MYAPPS_FRONT_URL "front.myapps.space:443" CACHE STRING "MyApps.space Front Default URL")
 set(EXTRA_DEFINITIONS "${EXTRA_DEFINITIONS}" CACHE STRING "Extra compiler definitions")
 add_definitions(${EXTRA_DEFINITIONS})
 
 ###############################################################################
 # Build configuration
 ###############################################################################
-set(OLA_CLIENT_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
-set(OLA_CLIENT_VERSION_MINOR ${PROJECT_VERSION_MINOR})
-set(OLA_CLIENT_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(MYAPPS_CLIENT_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(MYAPPS_CLIENT_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(MYAPPS_CLIENT_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 
 ###############################################################################
 # Build external projects
@@ -142,7 +142,7 @@ include(cmake/source-analisys.cmake)
 enable_testing()
 include(CTest)
 ###############################################################################
-add_subdirectory(ola)
+add_subdirectory(myapps)
 
 ###############################################################################
 include(cmake/source-format.cmake)

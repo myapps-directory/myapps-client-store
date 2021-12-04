@@ -32,12 +32,12 @@
 #include "solid/frame/mprpc/mprpcsocketstub_openssl.hpp"
 #include "solid/frame/mprpc/mprpcprotocol_serialization_v3.hpp"
 
-#include "ola/common/utility/encode.hpp"
-#include "ola/common/utility/version.hpp"
+#include "myapps/common/utility/encode.hpp"
+#include "myapps/common/utility/version.hpp"
 
-#include "ola/client/utility/auth_file.hpp"
-#include "ola/client/utility/file_monitor.hpp"
-#include "ola/client/utility/locale.hpp"
+#include "myapps/client/utility/auth_file.hpp"
+#include "myapps/client/utility/file_monitor.hpp"
+#include "myapps/client/utility/locale.hpp"
 
 #include "boost/filesystem.hpp"
 #include "boost/program_options.hpp"
@@ -58,11 +58,11 @@
 #include <future>
 #include <iostream>
 
-using namespace ola;
+using namespace myapps;
 using namespace solid;
 using namespace std;
-using namespace ola::front;
-using namespace ola::client::store;
+using namespace myapps::front;
+using namespace myapps::client::store;
 namespace fs = boost::filesystem;
 
 using AioSchedulerT = frame::Scheduler<frame::aio::Reactor>;
@@ -74,7 +74,7 @@ using SchedulerT    = frame::Scheduler<frame::Reactor>;
 namespace {
 
 constexpr string_view service_name("ola_client_store");
-const solid::LoggerT logger("ola::client::store");
+const solid::LoggerT logger("myapps::client::store");
 
 struct Parameters {
     vector<string> debug_modules;
@@ -257,7 +257,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
     char*   argv[1] = {GetCommandLineA()};
 
     {
-        const auto m_singleInstanceMutex = CreateMutex(NULL, TRUE, L"OLA_STORE_SHARED_MUTEX");
+        const auto m_singleInstanceMutex = CreateMutex(NULL, TRUE, L"MYAPPS_STORE_SHARED_MUTEX");
         if (m_singleInstanceMutex == NULL || GetLastError() == ERROR_ALREADY_EXISTS) {
             HWND existingApp = FindWindow(0, L"MyApps.space Store");
             if (existingApp) {
@@ -370,7 +370,7 @@ int main(int argc, char* argv[])
         engine.start(std::move(config));
     }
 
-    main_window.setWindowIcon(QIcon(":/images/ola_store_bag.ico"));
+    main_window.setWindowIcon(QIcon(":/images/store_bag.ico"));
     main_window.show();
 
     SetWindowText(GetActiveWindow(), L"MyApps.space Store");
@@ -437,7 +437,7 @@ bool Parameters::parse(ULONG argc, PWSTR* argv)
         options_description config(string(service_name) + " configuration options");
         // clang-format off
         config.add_options()
-            ("debug-modules,M", value<std::vector<std::string>>(&this->debug_modules)->default_value(std::vector<std::string>{"ola::.*:VIEW", ".*:EWX"}), "Debug logging modules")
+            ("debug-modules,M", value<std::vector<std::string>>(&this->debug_modules)->default_value(std::vector<std::string>{"myapps::.*:VIEW", ".*:EWX"}), "Debug logging modules")
             ("debug-address,A", value<string>(&debug_addr)->default_value(""), "Debug server address (e.g. on linux use: nc -l 9999)")
             ("debug-port,P", value<string>(&debug_port)->default_value("9999"), "Debug server port (e.g. on linux use: nc -l 9999)")
             ("debug-console,C", value<bool>(&debug_console)->implicit_value(true)->default_value(false), "Debug console")
@@ -470,7 +470,7 @@ bool Parameters::parse(ULONG argc, PWSTR* argv)
         }
 
         if (bootstrap.count("version") != 0u) {
-            cout << ola::utility::version_full() << endl;
+            cout << myapps::utility::version_full() << endl;
             cout << "SolidFrame: " << solid::version_full() << endl;
             return false;
         }
@@ -540,7 +540,7 @@ void write_value(std::ostream& _ros, const string& _name, const boost::any& _rav
         _ros << _name << '=' << boost::any_cast<std::string>(_rav) << endl;
     }
     else if (_rav.type() == typeid(std::wstring)) {
-        _ros << _name << '=' << ola::client::utility::narrow(boost::any_cast<std::wstring>(_rav)) << endl;
+        _ros << _name << '=' << myapps::client::utility::narrow(boost::any_cast<std::wstring>(_rav)) << endl;
     }
     else if (_rav.type() == typeid(std::vector<std::string>)) {
         const auto& v = boost::any_cast<const std::vector<std::string>&>(_rav);
@@ -605,21 +605,21 @@ void complete_message(
 
 void front_configure_service(Authenticator& _rauth, const Parameters& _params, frame::mprpc::ServiceT& _rsvc, AioSchedulerT& _rsch, frame::aio::Resolver& _rres)
 {
-    auto                        proto = frame::mprpc::serialization_v3::create_protocol<reflection::v1::metadata::Variant, ola::front::ProtocolTypeIndexT>(
-        ola::utility::metadata_factory,
+    auto                        proto = frame::mprpc::serialization_v3::create_protocol<reflection::v1::metadata::Variant, myapps::front::ProtocolTypeIndexT>(
+        myapps::utility::metadata_factory,
         [&](auto& _rmap) {
-            auto lambda = [&](const ola::front::ProtocolTypeIndexT _id, const std::string_view _name, auto const& _rtype) {
+            auto lambda = [&](const myapps::front::ProtocolTypeIndexT _id, const std::string_view _name, auto const& _rtype) {
                 using TypeT = typename std::decay_t<decltype(_rtype)>::TypeT;
                 _rmap.template registerMessage<TypeT>(_id, _name, complete_message<TypeT>);
             };
-            ola::front::core::configure_protocol(lambda);
-            ola::front::main::configure_protocol(lambda);
-            ola::front::store::configure_protocol(lambda);
+            myapps::front::core::configure_protocol(lambda);
+            myapps::front::main::configure_protocol(lambda);
+            myapps::front::store::configure_protocol(lambda);
         }
     );
     frame::mprpc::Configuration cfg(_rsch, proto);
 
-    cfg.client.name_resolve_fnc = frame::mprpc::InternetResolverF(_rres, ola::front::default_port());
+    cfg.client.name_resolve_fnc = frame::mprpc::InternetResolverF(_rres, myapps::front::default_port());
 
     cfg.client.connection_start_state     = frame::mprpc::ConnectionState::Passive;
     cfg.pool_max_active_connection_count  = 4;
@@ -629,7 +629,7 @@ void front_configure_service(Authenticator& _rauth, const Parameters& _params, f
         _rauth.onConnectionStop(_rctx);
     };
     cfg.client.connection_start_fnc = [&_rauth](frame::mprpc::ConnectionContext& _rctx) {
-        _rctx.any() = std::make_tuple(core::version, main::version, store::version, ola::utility::version);
+        _rctx.any() = std::make_tuple(core::version, main::version, store::version, myapps::utility::version);
         _rauth.onConnectionStart(_rctx);
     };
 
@@ -681,7 +681,7 @@ void Authenticator::onAuthFileChange()
     string             user;
     string             token;
     
-    ola::client::utility::auth_read(authDataFilePath(), endpoint, user, token);
+    myapps::client::utility::auth_read(authDataFilePath(), endpoint, user, token);
 
     solid_log(logger, Info, "new auth data = " << endpoint << " " << user << " old auth data = " << endpoint_ << " " << user_);
 

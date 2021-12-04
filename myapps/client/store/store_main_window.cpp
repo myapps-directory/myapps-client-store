@@ -23,19 +23,19 @@
 #include <chrono>
 #include <iomanip>
 
-#include "ola/common/utility/version.hpp"
+#include "myapps/common/utility/version.hpp"
 
 #include "solid/system/cstring.hpp"
 #include "solid/system/log.hpp"
 
 using namespace std;
 
-namespace ola {
+namespace myapps {
 namespace client {
 namespace store {
 
 namespace {
-const solid::LoggerT logger("ola::client::store::widget");
+const solid::LoggerT logger("myapps::client::store::widget");
 constexpr int        g_image_width     = 384;
 constexpr int        g_image_height    = 216;
 constexpr int        g_item_width      = 384;
@@ -129,8 +129,8 @@ struct MainWindow::Data {
     
     }
 
-    void configureBuildPrepareStateComboBox(const ola::utility::AppItemEntry& _build);
-    void configureMediaPrepareStateComboBox(const ola::utility::AppItemEntry& _build);
+    void configureBuildPrepareStateComboBox(const myapps::utility::AppItemEntry& _build);
+    void configureMediaPrepareStateComboBox(const myapps::utility::AppItemEntry& _build);
 };
 
 void ListItem::paint(
@@ -400,8 +400,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     , pimpl_(solid::make_pimpl<Data>(_rengine, this))
 {
     qRegisterMetaType<VectorPairStringT>("VectorPairStringT");
-    qRegisterMetaType<std::shared_ptr<ola::front::main::FetchBuildConfigurationResponse>>("std::shared_ptr<ola::front::FetchBuildConfigurationResponse>");
-    qRegisterMetaType<std::shared_ptr<ola::front::main::FetchAppResponse>>("std::shared_ptr<ola::front::FetchAppResponse>");
+    qRegisterMetaType<std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse>>("std::shared_ptr<myapps::front::FetchBuildConfigurationResponse>");
+    qRegisterMetaType<std::shared_ptr<myapps::front::main::FetchAppResponse>>("std::shared_ptr<myapps::front::FetchAppResponse>");
 
     setWindowFlags(windowFlags() & (~Qt::WindowMaximizeButtonHint));
 
@@ -423,9 +423,9 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->list_form_.listView->setModel(&pimpl_->list_model_);
     pimpl_->list_form_.listView->setItemDelegate(&pimpl_->list_delegate_);
     pimpl_->list_form_.listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    pimpl_->list_form_.listView->verticalScrollBar()->setSingleStep(5);
-
-    pimpl_->about_form_.image_label->setPixmap(QPixmap(":/images/ola_store_bag.png"));
+    pimpl_->list_form_.listView->verticalScrollBar()->setSingleStep(20 * pimpl_->scale_y_);
+    
+    pimpl_->about_form_.image_label->setPixmap(QPixmap(":/images/store_bag.png"));
 
     //setWindowFlags(Qt::Drawer);
     {
@@ -448,9 +448,9 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     connect(pimpl_->list_form_.listView, SIGNAL(doubleClicked(const QModelIndex&)), this, SLOT(onItemDoubleClicked(const QModelIndex&)));
     connect(pimpl_->item_form_.acquire_button, SIGNAL(toggled(bool)), this, SLOT(onAquireButtonToggled(bool)));
 
-    connect(this, SIGNAL(itemData(int, std::shared_ptr<ola::front::FetchBuildConfigurationResponse>)), this, SLOT(itemDataSlot(int, std::shared_ptr<ola::front::FetchBuildConfigurationResponse>)), Qt::QueuedConnection);
+    connect(this, SIGNAL(itemData(int, std::shared_ptr<myapps::front::FetchBuildConfigurationResponse>)), this, SLOT(itemDataSlot(int, std::shared_ptr<myapps::front::FetchBuildConfigurationResponse>)), Qt::QueuedConnection);
 
-    connect(this, SIGNAL(itemEntries(int, std::shared_ptr<ola::front::FetchAppResponse>)), this, SLOT(itemEntriesSlot(int, std::shared_ptr<ola::front::FetchAppResponse>)), Qt::QueuedConnection);
+    connect(this, SIGNAL(itemEntries(int, std::shared_ptr<myapps::front::FetchAppResponse>)), this, SLOT(itemEntriesSlot(int, std::shared_ptr<myapps::front::FetchAppResponse>)), Qt::QueuedConnection);
 
     connect(this, SIGNAL(itemAcquire(int, bool)), this, SLOT(itemAcquireSlot(int, bool)), Qt::QueuedConnection);
 
@@ -692,13 +692,13 @@ void MainWindow::showItem(int _index)
 
     pimpl_->engine().fetchItemEntries(
         item.engine_index_,
-        [this, index = _index](std::shared_ptr<ola::front::main::FetchAppResponse>& _response_ptr) {
+        [this, index = _index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
             //called on another thread - need to move the data onto GUI thread
             emit itemEntries(index, _response_ptr);
         });
 }
 
-void MainWindow::itemDataSlot(int _index, std::shared_ptr<ola::front::main::FetchBuildConfigurationResponse> _response_ptr)
+void MainWindow::itemDataSlot(int _index, std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse> _response_ptr)
 {
     if (_response_ptr && _response_ptr->error_ == 0) {
         auto& item = pimpl_->list_model_.item(_index);
@@ -726,9 +726,9 @@ void MainWindow::itemDataSlot(int _index, std::shared_ptr<ola::front::main::Fetc
     }
 }
 
-const char* build_status_to_image_name(const ola::utility::AppItemStateE _status)
+const char* build_status_to_image_name(const myapps::utility::AppItemStateE _status)
 {
-    using AppItemStateE = ola::utility::AppItemStateE;
+    using AppItemStateE = myapps::utility::AppItemStateE;
     switch (_status) {
     case AppItemStateE::Invalid:
         return ":/images/none.png";
@@ -755,8 +755,8 @@ const char* build_status_to_image_name(const ola::utility::AppItemStateE _status
     }
 }
 
-void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::main::FetchAppResponse> _response_ptr){
-    using namespace ola::utility;
+void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<myapps::front::main::FetchAppResponse> _response_ptr){
+    using namespace myapps::utility;
 
     if (!_response_ptr) return;
     if (_response_ptr->error_ != 0) {
@@ -839,7 +839,7 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::main::F
         else if (item.build_id_ == app_item_invalid) {
             index = 4;
         }
-        else if (has_application_flag(item.flags_, ApplicationFlagE::Owned) && item.build_id_ == ola::utility::app_item_private_alpha) {
+        else if (has_application_flag(item.flags_, ApplicationFlagE::Owned) && item.build_id_ == myapps::utility::app_item_private_alpha) {
             index = 5;
         }
         else {
@@ -869,7 +869,7 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<ola::front::main::F
     }
 }
 
-void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<ola::front::main::FetchAppResponse> _response_ptr)
+void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<myapps::front::main::FetchAppResponse> _response_ptr)
 {
     pimpl_->configure_form_.treeWidget->setColumnCount(1);
     pimpl_->configure_form_.treeWidget->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -894,10 +894,10 @@ void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<ola::front::ma
         auto pitem = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList(name));
         pitem->setIcon(0, QIcon(build_status_to_image_name(e.state())));
         pitem->setData(0, Qt::UserRole, e.value());
-        if (e.type() == ola::utility::AppItemTypeE::Build) {
+        if (e.type() == myapps::utility::AppItemTypeE::Build) {
             build_items.append(pitem);
         }
-        else if (e.type() == ola::utility::AppItemTypeE::Media) {
+        else if (e.type() == myapps::utility::AppItemTypeE::Media) {
             media_items.append(pitem);
         }
     }
@@ -1135,7 +1135,7 @@ void MainWindow::goAboutSlot(bool)
 
 void MainWindow::buildChangedSlot(int _index)
 {
-    using namespace ola::utility;
+    using namespace myapps::utility;
 
     if (pimpl_->item_form_.comboBox->count() == 0) {
         return;
@@ -1177,12 +1177,12 @@ void MainWindow::buildChangedSlot(int _index)
                 pimpl_->engine().changeAppItemState(
                     item.engine_index_,
                     entry, static_cast<int>(AppItemStateE::ReviewStarted),
-                    [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::core::Response>& _response_ptr) {
+                    [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<myapps::front::core::Response>& _response_ptr) {
                     solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
                     pimpl_->engine().fetchItemEntries(
                         engine_index,
-                        [this, index](std::shared_ptr<ola::front::main::FetchAppResponse>& _response_ptr) {
+                        [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
                             //called on another thread - need to move the data onto GUI thread
                             emit itemEntries(index, _response_ptr);
                         });
@@ -1202,13 +1202,13 @@ void MainWindow::buildChangedSlot(int _index)
 
     if (!item.data_ptr_) {
         string build_id = item.build_id_.toStdString();
-        if (build_id == ola::utility::app_item_invalid) {
+        if (build_id == myapps::utility::app_item_invalid) {
             build_id.clear();
         }
         pimpl_->engine().fetchItemData(
             item.engine_index_,
             build_id,
-            [this, index = pimpl_->current_item_](std::shared_ptr<ola::front::main::FetchBuildConfigurationResponse>& _response_ptr) {
+            [this, index = pimpl_->current_item_](std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse>& _response_ptr) {
             //called on another thread - need to move the data onto GUI thread
             emit itemData(index, _response_ptr);
         });
@@ -1226,7 +1226,7 @@ void MainWindow::configureItemChangedSlot(QTreeWidgetItem* _pcurrent, QTreeWidge
         pimpl_->config_current_build_ = _pcurrent->text(0);
         pimpl_->configure_form_.stateComboBox->show();
         
-        const ola::utility::AppItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
+        const myapps::utility::AppItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
 
         pimpl_->configureBuildPrepareStateComboBox(entry);
     }
@@ -1235,7 +1235,7 @@ void MainWindow::configureItemChangedSlot(QTreeWidgetItem* _pcurrent, QTreeWidge
         pimpl_->config_current_media_ = _pcurrent->text(0);
         pimpl_->configure_form_.stateComboBox->show();
 
-        const ola::utility::AppItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
+        const myapps::utility::AppItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
 
         pimpl_->configureMediaPrepareStateComboBox(entry);
     }
@@ -1246,8 +1246,8 @@ void MainWindow::configureItemChangedSlot(QTreeWidgetItem* _pcurrent, QTreeWidge
     pimpl_->configure_form_.frame->update();
 }
 
-void MainWindow::Data::configureMediaPrepareStateComboBox(const ola::utility::AppItemEntry& _item) {
-    using namespace ola::utility;
+void MainWindow::Data::configureMediaPrepareStateComboBox(const myapps::utility::AppItemEntry& _item) {
+    using namespace myapps::utility;
     configure_form_.stateComboBox->clear();
     configure_form_.stateComboBox->setPlaceholderText(tr("Invalid"));
     configure_form_.stateComboBox->setCurrentIndex(-1);
@@ -1268,8 +1268,8 @@ void MainWindow::Data::configureMediaPrepareStateComboBox(const ola::utility::Ap
     }
 }
 
-void MainWindow::Data::configureBuildPrepareStateComboBox(const ola::utility::AppItemEntry& _item) {
-    using namespace ola::utility;
+void MainWindow::Data::configureBuildPrepareStateComboBox(const myapps::utility::AppItemEntry& _item) {
+    using namespace myapps::utility;
     configure_form_.stateComboBox->clear();
     configure_form_.stateComboBox->setPlaceholderText(tr("Invalid"));
     configure_form_.stateComboBox->setCurrentIndex(-1);
@@ -1331,7 +1331,7 @@ void MainWindow::Data::configureBuildPrepareStateComboBox(const ola::utility::Ap
 }
 
 void MainWindow::configureStateChangedSlot(int _index) {
-    using namespace ola::utility;
+    using namespace myapps::utility;
 
     auto pcurrent_item = pimpl_->configure_form_.treeWidget->currentItem();
 
@@ -1351,12 +1351,12 @@ void MainWindow::configureStateChangedSlot(int _index) {
         pimpl_->engine().changeAppItemState(
             item.engine_index_,
             item_entry, req_state,
-            [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::core::Response>& _response_ptr) {
+            [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<myapps::front::core::Response>& _response_ptr) {
                 solid_log(logger, Verbose, "ChangeAppItemState response: "<<_response_ptr->error_<<" message: "<<_response_ptr->message_);
                 
                 pimpl_->engine().fetchItemEntries(
                     engine_index,
-                    [this, index](std::shared_ptr<ola::front::main::FetchAppResponse>& _response_ptr) {
+                    [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
                         //called on another thread - need to move the data onto GUI thread
                         emit itemEntries(index, _response_ptr);
                     });
@@ -1366,7 +1366,7 @@ void MainWindow::configureStateChangedSlot(int _index) {
 }
 
 void MainWindow::onReviewAcceptButtonClicked(bool _checked) {
-    using namespace ola::utility;
+    using namespace myapps::utility;
     auto index = pimpl_->item_form_.comboBox->currentIndex();
     AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(index).toULongLong() };
     
@@ -1376,12 +1376,12 @@ void MainWindow::onReviewAcceptButtonClicked(bool _checked) {
     pimpl_->engine().changeAppItemState(
         item.engine_index_,
         entry, static_cast<int>(AppItemStateE::ReviewAccepted),
-        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::core::Response>& _response_ptr) {
+        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<myapps::front::core::Response>& _response_ptr) {
         solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
         pimpl_->engine().fetchItemEntries(
             engine_index,
-            [this, index](std::shared_ptr<ola::front::main::FetchAppResponse>& _response_ptr) {
+            [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
                 //called on another thread - need to move the data onto GUI thread
                 emit itemEntries(index, _response_ptr);
             });
@@ -1390,7 +1390,7 @@ void MainWindow::onReviewAcceptButtonClicked(bool _checked) {
 }
 
 void MainWindow::onReviewRejectButtonClicked(bool _checked) {
-    using namespace ola::utility;
+    using namespace myapps::utility;
     auto index = pimpl_->item_form_.comboBox->currentIndex();
     AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(index).toULongLong() };
 
@@ -1400,12 +1400,12 @@ void MainWindow::onReviewRejectButtonClicked(bool _checked) {
     pimpl_->engine().changeAppItemState(
         item.engine_index_,
         entry, static_cast<int>(AppItemStateE::ReviewRejected),
-        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<ola::front::core::Response>& _response_ptr) {
+        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<myapps::front::core::Response>& _response_ptr) {
         solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
         pimpl_->engine().fetchItemEntries(
             engine_index,
-            [this, index](std::shared_ptr<ola::front::main::FetchAppResponse>& _response_ptr) {
+            [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
                 //called on another thread - need to move the data onto GUI thread
                 emit itemEntries(index, _response_ptr);
             });
@@ -1415,4 +1415,4 @@ void MainWindow::onReviewRejectButtonClicked(bool _checked) {
 
 } //namespace store
 } //namespace client
-} //namespace ola
+} //namespace myapps

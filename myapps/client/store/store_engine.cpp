@@ -1,19 +1,19 @@
 #include "store_engine.hpp"
-#include "ola/common/utility/encode.hpp"
+#include "myapps/common/utility/encode.hpp"
 #include "solid/system/log.hpp"
 #include <unordered_map>
-#include "ola/client/utility/app_list_file.hpp"
+#include "myapps/client/utility/app_list_file.hpp"
 
 #include <deque>
 
 using namespace std;
 using namespace solid;
 
-namespace ola {
+namespace myapps {
 namespace client {
 namespace store {
 namespace {
-const solid::LoggerT logger("ola::client::store::engine");
+const solid::LoggerT logger("myapps::client::store::engine");
 }
 
 struct ApplicationStub {
@@ -64,7 +64,7 @@ struct Equal {
 using ApplicationDequeT = std::deque<ApplicationStub>;
 using AtomicSizeT       = std::atomic<size_t>;
 using ApplicationMapT   = std::unordered_map<const std::reference_wrapper<const string>, size_t, Hash, Equal>;
-using AppListFileT = ola::client::utility::AppListFile;
+using AppListFileT = myapps::client::utility::AppListFile;
 
 struct Engine::Implementation {
     Configuration           config_;
@@ -89,7 +89,7 @@ public:
     string localMediaPath(const string& _path, const string& _storage_id) const
     {
         //TODO:
-        return "c:\\MyApps.space\\.m\\" + ola::utility::hex_encode(_storage_id) + '\\' + _path;
+        return "c:\\MyApps.space\\.m\\" + myapps::utility::hex_encode(_storage_id) + '\\' + _path;
     }
 };
 
@@ -122,10 +122,10 @@ void Engine::start(Configuration&& _rcfg)
             for (auto& app : _rrecv_msg_ptr->app_vec_) {
                 pimpl_->app_dq_.emplace_back(std::move(app.id_), std::move(app.unique_));
                 pimpl_->app_map_[pimpl_->app_dq_.back().app_uid_] = pimpl_->app_dq_.size() - 1;
-                if (app.isFlagSet(ola::utility::AppFlagE::Owned)) {
+                if (app.isFlagSet(myapps::utility::AppFlagE::Owned)) {
                     pimpl_->app_dq_.back().flag(ApplicationFlagE::Owned);
                 }
-                if (app.isFlagSet(ola::utility::AppFlagE::ReviewRequest)) {
+                if (app.isFlagSet(myapps::utility::AppFlagE::ReviewRequest)) {
                     pimpl_->app_dq_.back().flag(ApplicationFlagE::ReviewRequest);
                 }
             }
@@ -220,7 +220,7 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
     }
     for (size_t i = _index; i < last_index; ++i) {
 
-        auto req_ptr = make_shared<ola::front::main::FetchBuildConfigurationRequest>();
+        auto req_ptr = make_shared<myapps::front::main::FetchBuildConfigurationRequest>();
         string build_request;
         {
             lock_guard<mutex> lock(pimpl_->mutex_);
@@ -231,8 +231,8 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
 
         auto lambda = [this, i, build_request](
                           frame::mprpc::ConnectionContext&                              _rctx,
-                          std::shared_ptr<ola::front::main::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
-                          std::shared_ptr<ola::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
+                          std::shared_ptr<myapps::front::main::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
+                          std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
                           ErrorConditionT const&                                        _rerror) mutable {
             if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
                 solid_log(logger, Info, "Response Application: " << _rrecv_msg_ptr->configuration_.property_vec_[0].second<< " "<< _rrecv_msg_ptr->image_blob_.size());
@@ -256,11 +256,11 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
         req_ptr->lang_  = pimpl_->config_.language_;
         req_ptr->os_id_ = pimpl_->config_.os_;
         req_ptr->build_id_ = build_request;
-        if (req_ptr->build_id_ == ola::utility::app_item_invalid) {
+        if (req_ptr->build_id_ == myapps::utility::app_item_invalid) {
             req_ptr->build_id_.clear();
         }
 
-        ola::utility::Build::set_option(req_ptr->fetch_options_, ola::utility::Build::FetchOptionsE::Image);
+        myapps::utility::Build::set_option(req_ptr->fetch_options_, myapps::utility::Build::FetchOptionsE::Image);
         req_ptr->property_vec_.emplace_back("name");
         req_ptr->property_vec_.emplace_back("company");
         req_ptr->property_vec_.emplace_back("brief");
@@ -298,8 +298,8 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
 {
     auto lambda = [this, _fetch_fnc](
         frame::mprpc::ConnectionContext& _rctx,
-        std::shared_ptr<ola::front::main::FetchBuildConfigurationRequest>& _rsent_msg_ptr,
-        std::shared_ptr<ola::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
+        std::shared_ptr<myapps::front::main::FetchBuildConfigurationRequest>& _rsent_msg_ptr,
+        std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
         ErrorConditionT const& _rerror) {
         
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
@@ -312,7 +312,7 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
         _fetch_fnc(_rrecv_msg_ptr);
     };
 
-    auto req_ptr = make_shared<ola::front::main::FetchBuildConfigurationRequest>();
+    auto req_ptr = make_shared<myapps::front::main::FetchBuildConfigurationRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
@@ -322,8 +322,8 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
     req_ptr->os_id_ = pimpl_->config_.os_;
     req_ptr->build_id_ = _build_name;
 
-    ola::utility::Build::set_option(req_ptr->fetch_options_, ola::utility::Build::FetchOptionsE::Image);
-    ola::utility::Build::set_option(req_ptr->fetch_options_, ola::utility::Build::FetchOptionsE::Media);
+    myapps::utility::Build::set_option(req_ptr->fetch_options_, myapps::utility::Build::FetchOptionsE::Image);
+    myapps::utility::Build::set_option(req_ptr->fetch_options_, myapps::utility::Build::FetchOptionsE::Media);
     req_ptr->property_vec_.emplace_back("name");
     req_ptr->property_vec_.emplace_back("company");
     req_ptr->property_vec_.emplace_back("brief");
@@ -337,14 +337,14 @@ void Engine::fetchItemEntries(const size_t _index, OnFetchAppItemsT _fetch_fnc)
 {
     auto lambda = [this, _fetch_fnc](
         frame::mprpc::ConnectionContext& _rctx,
-        std::shared_ptr<ola::front::main::FetchAppRequest>& _rsent_msg_ptr,
-        std::shared_ptr<ola::front::main::FetchAppResponse>& _rrecv_msg_ptr,
+        std::shared_ptr<myapps::front::main::FetchAppRequest>& _rsent_msg_ptr,
+        std::shared_ptr<myapps::front::main::FetchAppResponse>& _rrecv_msg_ptr,
         ErrorConditionT const& _rerror) {
 
             _fetch_fnc(_rrecv_msg_ptr);
     };
 
-    auto req_ptr = make_shared<ola::front::main::FetchAppRequest>();
+    auto req_ptr = make_shared<myapps::front::main::FetchAppRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
@@ -359,8 +359,8 @@ void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItem
 {
     auto lambda = [this, _fetch_fnc](
                       frame::mprpc::ConnectionContext&                _rctx,
-                      std::shared_ptr<ola::front::main::AcquireAppRequest>& _rsent_msg_ptr,
-                      std::shared_ptr<ola::front::core::Response>&          _rrecv_msg_ptr,
+                      std::shared_ptr<myapps::front::main::AcquireAppRequest>& _rsent_msg_ptr,
+                      std::shared_ptr<myapps::front::core::Response>&          _rrecv_msg_ptr,
                       ErrorConditionT const&                          _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             _fetch_fnc(_rsent_msg_ptr->acquire_);
@@ -368,7 +368,7 @@ void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItem
             _fetch_fnc(false);
         }
     };
-    auto req_ptr = make_shared<ola::front::main::AcquireAppRequest>();
+    auto req_ptr = make_shared<myapps::front::main::AcquireAppRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
@@ -386,7 +386,7 @@ void Engine::acquireBuild(const size_t _index, const std::string& _build_id) {
         pimpl_->app_list_file_.erase(pimpl_->app_dq_[_index].app_uid_);
     }
     else {
-        ola::utility::AppItemEntry entry;
+        myapps::utility::AppItemEntry entry;
         entry.name_ = _build_id;
         pimpl_->app_list_file_.insert(pimpl_->app_dq_[_index].app_uid_, entry);
     }
@@ -395,20 +395,20 @@ void Engine::acquireBuild(const size_t _index, const std::string& _build_id) {
 
 void Engine::changeAppItemState(
     const size_t _index,
-    const ola::utility::AppItemEntry& _app_item,
+    const myapps::utility::AppItemEntry& _app_item,
     const uint8_t _req_state,
     OnResponseT _on_response_fnc
 ) {
     auto lambda = [this, _on_response_fnc](
         frame::mprpc::ConnectionContext& _rctx,
-        std::shared_ptr<ola::front::main::ChangeAppItemStateRequest>& _rsent_msg_ptr,
-        std::shared_ptr<ola::front::core::Response>& _rrecv_msg_ptr,
+        std::shared_ptr<myapps::front::main::ChangeAppItemStateRequest>& _rsent_msg_ptr,
+        std::shared_ptr<myapps::front::core::Response>& _rrecv_msg_ptr,
         ErrorConditionT const& _rerror) {
 
             _on_response_fnc(_rrecv_msg_ptr);
     };
 
-    auto req_ptr = make_shared<ola::front::main::ChangeAppItemStateRequest>();
+    auto req_ptr = make_shared<myapps::front::main::ChangeAppItemStateRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
@@ -423,4 +423,4 @@ void Engine::changeAppItemState(
 
 } //namespace store
 } //namespace client
-} //namespace ola
+} //namespace myapps

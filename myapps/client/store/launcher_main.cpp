@@ -36,7 +36,7 @@ using namespace std;
 namespace {
 boost::filesystem::path compute_qt_path()
 {
-    const char* qt_env = getenv("OLA_QT_PATH");
+    const char* qt_env = getenv("MYAPPS_QT_PATH");
 
     if (qt_env != nullptr && *qt_env) {
         boost::filesystem::path qt_path(qt_env);

@@ -5,10 +5,10 @@
 #include <vector>
 #include "solid/system/pimpl.hpp"
 #include "solid/frame/mprpc/mprpcservice.hpp"
-#include "ola/private/ola_front_protocol_store.hpp"
+#include "myapps/private/front_protocol_store.hpp"
 #include <boost/filesystem.hpp>
 
-namespace ola {
+namespace myapps {
 namespace client {
 namespace store {
 
@@ -51,10 +51,10 @@ class Engine{
     struct Implementation;
     solid::PimplT<Implementation> pimpl_;
 public:
-    using OnFetchItemDataT = std::function<void(std::shared_ptr<ola::front::main::FetchBuildConfigurationResponse>&)>;
-    using OnFetchAppItemsT = std::function<void(std::shared_ptr<ola::front::main::FetchAppResponse>&)>;
+    using OnFetchItemDataT = std::function<void(std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse>&)>;
+    using OnFetchAppItemsT = std::function<void(std::shared_ptr<myapps::front::main::FetchAppResponse>&)>;
     using OnAcquireItemT = std::function<void(bool)>;
-    using OnResponseT = std::function<void(std::shared_ptr<ola::front::core::Response>&)>;
+    using OnResponseT = std::function<void(std::shared_ptr<myapps::front::core::Response>&)>;
 
     Engine(solid::frame::mprpc::ServiceT& _rrpc_service);
     ~Engine();
@@ -77,7 +77,7 @@ public:
 
     void changeAppItemState(
         const size_t _index,
-        const ola::utility::AppItemEntry &_app_item,
+        const myapps::utility::AppItemEntry &_app_item,
         const uint8_t _req_state,
         OnResponseT _on_response_fnc
     );
@@ -85,4 +85,4 @@ public:
 
 } //namespace store
 } //namespace client
-} //namespace ola
+} //namespace myapps
