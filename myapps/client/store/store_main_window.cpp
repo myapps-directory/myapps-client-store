@@ -8,7 +8,6 @@
 #include <QAction>
 #include <QApplication>
 #include <QComboBox>
-#include <QDesktopWidget>
 #include <QImageReader>
 #include <QKeyEvent>
 #include <QMenu>
@@ -63,8 +62,8 @@ struct MainWindow::Data {
     QMenu           config_menu_;
     HistoryStackT   history_;
     QImage          current_image_;
-    int             dpi_x_   = QApplication::desktop()->logicalDpiX();
-    int             dpi_y_   = QApplication::desktop()->logicalDpiY();
+    int                 dpi_x_   = QApplication::primaryScreen()->logicalDotsPerInchX();
+    int                 dpi_y_   = QApplication::primaryScreen()->logicalDotsPerInchY();
     double          scale_x_ = double(dpi_x_) / 120.0; //173.0 / double(dpi_x_);
     double          scale_y_ = double(dpi_y_) / 120.0; //166.0 / double(dpi_y_);
     Sizes           sizes_{scale_x_, scale_y_, g_image_width, g_image_height, g_item_width, g_item_height};
