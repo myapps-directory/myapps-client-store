@@ -1,10 +1,10 @@
 #include "store_main_window.hpp"
 #include "ui_about_form.h"
 #include "ui_account_form.h"
+#include "ui_configure_form.h"
 #include "ui_item_form.h"
 #include "ui_list_form.h"
 #include "ui_store_form.h"
-#include "ui_configure_form.h"
 #include <QAction>
 #include <QApplication>
 #include <QComboBox>
@@ -12,15 +12,15 @@
 #include <QKeyEvent>
 #include <QMenu>
 #include <QPainter>
+#include <QScrollBar>
 #include <QTextLayout>
 #include <QToolBar>
 #include <QToolButton>
-#include <QScrollBar>
 #include <algorithm>
-#include <stack>
-#include <vector>
 #include <chrono>
 #include <iomanip>
+#include <stack>
+#include <vector>
 
 #include "myapps/common/utility/version.hpp"
 
@@ -44,35 +44,35 @@ constexpr int        item_row_count    = 2;
 
 using HistoryFunctionT = std::function<void()>;
 using HistoryStackT    = std::stack<std::pair<const QWidget*, HistoryFunctionT>>;
-} //namespace
+} // namespace
 
 struct MainWindow::Data {
-    Ui::StoreForm   store_form_;
-    Ui::ListForm    list_form_;
-    Ui::ItemForm    item_form_;
-    Ui::AccountForm account_form_;
-    Ui::AboutForm   about_form_;
-    Ui::ConfigureForm   configure_form_;
-    int             current_item_ = -1;
-    QAction         back_action_;
-    QAction         home_action_;
-    QAction         account_action_;
-    QAction         about_action_;
-    QToolBar        tool_bar_;
-    QMenu           config_menu_;
-    HistoryStackT   history_;
-    QImage          current_image_;
-    int                 dpi_x_   = QApplication::primaryScreen()->logicalDotsPerInchX();
-    int                 dpi_y_   = QApplication::primaryScreen()->logicalDotsPerInchY();
-    double          scale_x_ = double(dpi_x_) / 120.0; //173.0 / double(dpi_x_);
-    double          scale_y_ = double(dpi_y_) / 120.0; //166.0 / double(dpi_y_);
-    Sizes           sizes_{scale_x_, scale_y_, g_image_width, g_image_height, g_item_width, g_item_height};
-    ItemDelegate    list_delegate_{sizes_};
-    ListModel       list_model_;
-    QTreeWidgetItem* pcurrent_build_parent_ = nullptr;
-    QTreeWidgetItem* pcurrent_media_parent_ = nullptr;
-    QString          config_current_build_;
-    QString          config_current_media_;
+    Ui::StoreForm     store_form_;
+    Ui::ListForm      list_form_;
+    Ui::ItemForm      item_form_;
+    Ui::AccountForm   account_form_;
+    Ui::AboutForm     about_form_;
+    Ui::ConfigureForm configure_form_;
+    int               current_item_ = -1;
+    QAction           back_action_;
+    QAction           home_action_;
+    QAction           account_action_;
+    QAction           about_action_;
+    QToolBar          tool_bar_;
+    QMenu             config_menu_;
+    HistoryStackT     history_;
+    QImage            current_image_;
+    int               dpi_x_   = QApplication::primaryScreen()->logicalDotsPerInchX();
+    int               dpi_y_   = QApplication::primaryScreen()->logicalDotsPerInchY();
+    double            scale_x_ = double(dpi_x_) / 120.0; // 173.0 / double(dpi_x_);
+    double            scale_y_ = double(dpi_y_) / 120.0; // 166.0 / double(dpi_y_);
+    Sizes             sizes_{scale_x_, scale_y_, g_image_width, g_image_height, g_item_width, g_item_height};
+    ItemDelegate      list_delegate_{sizes_};
+    ListModel         list_model_;
+    QTreeWidgetItem*  pcurrent_build_parent_ = nullptr;
+    QTreeWidgetItem*  pcurrent_media_parent_ = nullptr;
+    QString           config_current_build_;
+    QString           config_current_media_;
 
     Data(Engine& _rengine, MainWindow* _pw)
         : list_model_(_rengine, sizes_)
@@ -124,8 +124,8 @@ struct MainWindow::Data {
         return history_.top().second;
     }
 
-    void setComboIndex(int _item_index) {
-    
+    void setComboIndex(int _item_index)
+    {
     }
 
     void configureBuildPrepareStateComboBox(const myapps::utility::AppItemEntry& _build);
@@ -268,7 +268,7 @@ void ListModel::prepareAndPushItem(
     const vector<char>& _image,
     const uint32_t      _flags)
 {
-    //called on pool thread
+    // called on pool thread
     ListItem item;
     item.engine_index_ = _index;
     item.brief_        = QString::fromStdString(_brief);
@@ -423,10 +423,10 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->list_form_.listView->setItemDelegate(&pimpl_->list_delegate_);
     pimpl_->list_form_.listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     pimpl_->list_form_.listView->verticalScrollBar()->setSingleStep(20 * pimpl_->scale_y_);
-    
+
     pimpl_->about_form_.image_label->setPixmap(QPixmap(":/images/store_bag.png"));
 
-    //setWindowFlags(Qt::Drawer);
+    // setWindowFlags(Qt::Drawer);
     {
         int   aElements[2] = {COLOR_WINDOW, COLOR_ACTIVECAPTION};
         DWORD aOldColors[2];
@@ -463,8 +463,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     connect(pimpl_->item_form_.review_accept_button, SIGNAL(clicked(bool)), this, SLOT(onReviewAcceptButtonClicked(bool)));
     connect(pimpl_->item_form_.review_reject_button, SIGNAL(clicked(bool)), this, SLOT(onReviewRejectButtonClicked(bool)));
 
-    connect(pimpl_->configure_form_.treeWidget, SIGNAL(currentItemChanged(QTreeWidgetItem *, QTreeWidgetItem *)), this, SLOT(configureItemChangedSlot(QTreeWidgetItem *, QTreeWidgetItem *)));
-    
+    connect(pimpl_->configure_form_.treeWidget, SIGNAL(currentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*)), this, SLOT(configureItemChangedSlot(QTreeWidgetItem*, QTreeWidgetItem*)));
+
     connect(pimpl_->item_form_.comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::buildChangedSlot);
 
     connect(pimpl_->configure_form_.stateComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::configureStateChangedSlot);
@@ -497,8 +497,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->tool_bar_.addSeparator();
     pimpl_->tool_bar_.addWidget(psearchcombo);
     pimpl_->tool_bar_.addWidget(empty);
-    //pimpl_->tool_bar_.addSeparator();
-    //pimpl_->tool_bar_.addWidget(ptoolbutton);
+    // pimpl_->tool_bar_.addSeparator();
+    // pimpl_->tool_bar_.addWidget(ptoolbutton);
     pimpl_->tool_bar_.addSeparator();
     pimpl_->tool_bar_.addAction(&pimpl_->about_action_);
 
@@ -516,7 +516,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
 
     pimpl_->item_form_.comboBox->clear();
 
-    //pimpl_->item_form_.comboBox->setMaximumHeight(pimpl_->item_form_.review_accept_button->height() - 2);
+    // pimpl_->item_form_.comboBox->setMaximumHeight(pimpl_->item_form_.review_accept_button->height() - 2);
     pimpl_->item_form_.review_accept_button->setMaximumHeight(pimpl_->item_form_.comboBox->height() + 6);
     pimpl_->item_form_.review_reject_button->setMaximumHeight(pimpl_->item_form_.comboBox->height() + 6);
     pimpl_->item_form_.configure_button->setMaximumHeight(pimpl_->item_form_.comboBox->height() + 6);
@@ -535,7 +535,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
         ostringstream oss;
 
         oss << utility::VERSION_MAJOR << '.' << utility::VERSION_MINOR;
-        //oss << " - " << client::utility::version_vcs_branch();
+        // oss << " - " << client::utility::version_vcs_branch();
         oss << " - <a href=https://github.com/vipalade/ola-client-store/tree/" << utility::version_vcs_commit() << ">" << utility::version_vcs_commit() << "</a>";
 
         pimpl_->about_form_.label_version->setText(QString::fromStdString(oss.str()));
@@ -543,7 +543,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     {
         using namespace std;
         using namespace std::chrono;
-        auto now_c = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        auto    now_c = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         std::tm ptm;
         localtime_s(&ptm, &now_c);
 
@@ -584,8 +584,10 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
         }
         {
             ostringstream oss;
-            oss << "MyApps.space Store, uses the LGPL, unchanged version of <a href=https://www.qt.io>Qt</a>"<<endl<<endl;
-            oss << "It uses the Qt libraries installed by the related open source project - <a href=https://github.com/vipalade/ola-client>MyApps.store Client</a>"<<endl<<endl;
+            oss << "MyApps.space Store, uses the LGPL, unchanged version of <a href=https://www.qt.io>Qt</a>" << endl
+                << endl;
+            oss << "It uses the Qt libraries installed by the related open source project - <a href=https://github.com/vipalade/ola-client>MyApps.store Client</a>" << endl
+                << endl;
             oss << "In order to use MyApps.space Store application with your own Qt libraries, please follow the below steps:" << endl;
             oss << " * Step 1" << endl;
             oss << " * Step 2" << endl;
@@ -596,7 +598,6 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
             pimpl_->about_form_.label_qt->setText(QString::fromStdString(oss.str()));
         }
     }
-
 }
 
 MainWindow::~MainWindow() {}
@@ -627,13 +628,14 @@ void MainWindow::showItem(int _index)
 {
     const QSize img_size{pimpl_->sizes_.image_width_, pimpl_->sizes_.image_height_};
 
-    if (pimpl_->current_item_ == _index) return;
+    if (pimpl_->current_item_ == _index)
+        return;
 
     pimpl_->current_item_ = _index;
     pimpl_->config_current_build_.clear();
     pimpl_->config_current_media_.clear();
 
-    auto& item            = pimpl_->list_model_.item(pimpl_->current_item_);
+    auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
     pimpl_->item_form_.frame->setFixedHeight(pimpl_->sizes_.image_height_);
     pimpl_->item_form_.image_label->setFixedSize(img_size);
     pimpl_->item_form_.image_label->setPixmap(QPixmap::fromImage(item.image_));
@@ -659,8 +661,7 @@ void MainWindow::showItem(int _index)
     if (has_application_flag(item.flags_, ApplicationFlagE::Aquired) || has_application_flag(item.flags_, ApplicationFlagE::Default)) {
         enable_combo = true;
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_on.png"));
-    }
-    else {
+    } else {
         pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_off.png"));
     }
 
@@ -678,13 +679,11 @@ void MainWindow::showItem(int _index)
     }
 #endif
 
-    
     pimpl_->item_form_.review_accept_button->setEnabled(enable_combo);
     pimpl_->item_form_.review_reject_button->setEnabled(enable_combo);
     if (has_application_flag(item.flags_, ApplicationFlagE::Owned)) {
         pimpl_->item_form_.configure_button->show();
-    }
-    else {
+    } else {
         pimpl_->item_form_.configure_button->hide();
     }
     pimpl_->item_form_.comboBox->setEnabled(enable_combo);
@@ -692,7 +691,7 @@ void MainWindow::showItem(int _index)
     pimpl_->engine().fetchItemEntries(
         item.engine_index_,
         [this, index = _index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
-            //called on another thread - need to move the data onto GUI thread
+            // called on another thread - need to move the data onto GUI thread
             emit itemEntries(index, _response_ptr);
         });
 }
@@ -700,14 +699,14 @@ void MainWindow::showItem(int _index)
 void MainWindow::itemDataSlot(int _index, std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse> _response_ptr)
 {
     if (_response_ptr && _response_ptr->error_ == 0) {
-        auto& item = pimpl_->list_model_.item(_index);
+        auto& item     = pimpl_->list_model_.item(_index);
         item.data_ptr_ = std::move(_response_ptr);
 
-        //TODO: ugly, order for items is set in 
-        //store engine and used here
-        item.name_ = QString::fromStdString(item.data_ptr_->configuration_.property_vec_[0].second);
+        // TODO: ugly, order for items is set in
+        // store engine and used here
+        item.name_    = QString::fromStdString(item.data_ptr_->configuration_.property_vec_[0].second);
         item.company_ = QString::fromStdString(item.data_ptr_->configuration_.property_vec_[1].second);
-        item.brief_ = QString::fromStdString(item.data_ptr_->configuration_.property_vec_[2].second);
+        item.brief_   = QString::fromStdString(item.data_ptr_->configuration_.property_vec_[2].second);
         pimpl_->item_form_.name_label->setText(item.name_);
         pimpl_->item_form_.company_label->setText(item.company_);
         pimpl_->item_form_.brief_label->setText(item.brief_);
@@ -754,17 +753,20 @@ const char* build_status_to_image_name(const myapps::utility::AppItemStateE _sta
     }
 }
 
-void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<myapps::front::main::FetchAppResponse> _response_ptr){
+void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<myapps::front::main::FetchAppResponse> _response_ptr)
+{
     using namespace myapps::utility;
 
-    if (!_response_ptr) return;
+    if (!_response_ptr)
+        return;
     if (_response_ptr->error_ != 0) {
-        solid_log(logger, Error, "FetchAppResponse error: "<< _response_ptr->error_<<" message: "<< _response_ptr->message_);
+        solid_log(logger, Error, "FetchAppResponse error: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
         if (_response_ptr->item_vec_.empty()) {
             return;
         }
     }
-    if (_index != pimpl_->current_item_) return;
+    if (_index != pimpl_->current_item_)
+        return;
 
     sort(
         _response_ptr->item_vec_.begin(),
@@ -772,21 +774,16 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<myapps::front::main
         [](const AppItemEntry& _e1, const AppItemEntry& _e2) {
             if (_e1.type() < _e2.type()) {
                 return true;
-            }
-            else if (_e1.type() > _e2.type()){
+            } else if (_e1.type() > _e2.type()) {
                 return false;
-            }
-            else if (_e1.state() > _e2.state()) {
+            } else if (_e1.state() > _e2.state()) {
                 return true;
-            }
-            else if (_e1.state() < _e2.state()) {
+            } else if (_e1.state() < _e2.state()) {
                 return false;
-            }
-            else {
+            } else {
                 return solid::cstring::cmp(_e1.name_.c_str(), _e2.name_.c_str()) > 0;
             }
-        }
-    );
+        });
 
     auto& item = pimpl_->list_model_.item(_index);
 
@@ -801,8 +798,7 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<myapps::front::main
     if (has_application_flag(item.flags_, ApplicationFlagE::Owned)) {
         pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PrivateAlpha)), tr("Private Alpha"));
         pimpl_->item_form_.configure_button->show();
-    }
-    else {
+    } else {
         pimpl_->item_form_.configure_button->hide();
     }
 
@@ -810,12 +806,11 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<myapps::front::main
     pimpl_->item_form_.review_reject_button->hide();
 
     bool found_any_build = false;
-    for (const auto& e : _response_ptr->item_vec_)
-    {
+    for (const auto& e : _response_ptr->item_vec_) {
         if (e.type() == AppItemTypeE::Build) {
             if (e.state() != AppItemStateE::Trash) {
                 found_any_build = true;
-                QString name = QString::fromStdString(e.name_);
+                QString name    = QString::fromStdString(e.name_);
                 pimpl_->item_form_.comboBox->addItem(QIcon(build_status_to_image_name(e.state())), name, e.value());
             }
         }
@@ -825,27 +820,21 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<myapps::front::main
         int index = -1;
         if (item.build_id_.isEmpty()) {
             index = 0;
-        }
-        else if (item.build_id_ == app_item_public_release) {
+        } else if (item.build_id_ == app_item_public_release) {
             index = 1;
-        }
-        else if (item.build_id_ == app_item_public_beta) {
+        } else if (item.build_id_ == app_item_public_beta) {
             index = 2;
-        }
-        else if (item.build_id_ == app_item_public_alpha) {
+        } else if (item.build_id_ == app_item_public_alpha) {
             index = 3;
-        }
-        else if (item.build_id_ == app_item_invalid) {
+        } else if (item.build_id_ == app_item_invalid) {
             index = 4;
-        }
-        else if (has_application_flag(item.flags_, ApplicationFlagE::Owned) && item.build_id_ == myapps::utility::app_item_private_alpha) {
+        } else if (has_application_flag(item.flags_, ApplicationFlagE::Owned) && item.build_id_ == myapps::utility::app_item_private_alpha) {
             index = 5;
-        }
-        else {
+        } else {
             for (int i = 5; i < pimpl_->item_form_.comboBox->count(); ++i) {
                 if (item.build_id_ == pimpl_->item_form_.comboBox->itemText(i)) {
                     index = i;
-                    AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(i).toULongLong()};
+                    AppItemEntry entry{pimpl_->item_form_.comboBox->itemData(i).toULongLong()};
 
                     if (!has_application_flag(item.flags_, ApplicationFlagE::Owned) && entry.state() >= AppItemStateE::ReviewRequest && entry.state() <= AppItemStateE::ReviewRejected) {
                         pimpl_->item_form_.review_accept_button->show();
@@ -857,7 +846,6 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<myapps::front::main
             if (index < 0) {
                 index = 0;
             }
-
         }
 
         pimpl_->item_form_.comboBox->setCurrentIndex(index);
@@ -873,30 +861,29 @@ void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<myapps::front:
     pimpl_->configure_form_.treeWidget->setColumnCount(1);
     pimpl_->configure_form_.treeWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-    //pimpl_->configure_form_.treeWidget->clear();
+    // pimpl_->configure_form_.treeWidget->clear();
 
     QList<QTreeWidgetItem*> build_items;
     QList<QTreeWidgetItem*> media_items;
 
     if (pimpl_->pcurrent_build_parent_ == nullptr) {
-        pimpl_->pcurrent_build_parent_ = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList{ tr("Builds") });
-        pimpl_->pcurrent_media_parent_ = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList{ tr("Media") });
-    }
-    else {
-        foreach(auto i, pimpl_->pcurrent_build_parent_->takeChildren()) delete i;
-        foreach(auto i, pimpl_->pcurrent_media_parent_->takeChildren()) delete i;
+        pimpl_->pcurrent_build_parent_ = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList{tr("Builds")});
+        pimpl_->pcurrent_media_parent_ = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList{tr("Media")});
+    } else {
+        foreach (auto i, pimpl_->pcurrent_build_parent_->takeChildren())
+            delete i;
+        foreach (auto i, pimpl_->pcurrent_media_parent_->takeChildren())
+            delete i;
     }
 
-    for (const auto& e : _response_ptr->item_vec_)
-    {
-        QString name = QString::fromStdString(e.name_);
-        auto pitem = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList(name));
+    for (const auto& e : _response_ptr->item_vec_) {
+        QString name  = QString::fromStdString(e.name_);
+        auto    pitem = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList(name));
         pitem->setIcon(0, QIcon(build_status_to_image_name(e.state())));
         pitem->setData(0, Qt::UserRole, e.value());
         if (e.type() == myapps::utility::AppItemTypeE::Build) {
             build_items.append(pitem);
-        }
-        else if (e.type() == myapps::utility::AppItemTypeE::Media) {
+        } else if (e.type() == myapps::utility::AppItemTypeE::Media) {
             media_items.append(pitem);
         }
     }
@@ -911,10 +898,9 @@ void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<myapps::front:
 
     pimpl_->configure_form_.stateComboBox->hide();
 
-
     if (!pimpl_->config_current_build_.isEmpty()) {
         bool found = false;
-        foreach(auto i, pimpl_->configure_form_.treeWidget->findItems(pimpl_->config_current_build_, Qt::MatchFixedString | Qt::MatchRecursive)) {
+        foreach (auto i, pimpl_->configure_form_.treeWidget->findItems(pimpl_->config_current_build_, Qt::MatchFixedString | Qt::MatchRecursive)) {
             if (i->parent() == pimpl_->pcurrent_build_parent_) {
                 found = true;
                 pimpl_->configure_form_.treeWidget->setCurrentItem(i);
@@ -925,9 +911,9 @@ void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<myapps::front:
         if (!found) {
             pimpl_->config_current_build_.clear();
         }
-    }else if (!pimpl_->config_current_media_.isEmpty()) {
+    } else if (!pimpl_->config_current_media_.isEmpty()) {
         bool found = false;
-        foreach(auto i, pimpl_->configure_form_.treeWidget->findItems(pimpl_->config_current_media_, Qt::MatchFixedString | Qt::MatchRecursive)) {
+        foreach (auto i, pimpl_->configure_form_.treeWidget->findItems(pimpl_->config_current_media_, Qt::MatchFixedString | Qt::MatchRecursive)) {
             if (i->parent() == pimpl_->pcurrent_media_parent_) {
                 found = true;
                 pimpl_->configure_form_.treeWidget->setCurrentItem(i);
@@ -947,7 +933,6 @@ void MainWindow::itemAcquireSlot(int _index, bool _acquired)
 {
     auto& item = pimpl_->list_model_.item(_index);
 
-
     set_application_flag(item.flags_, ApplicationFlagE::Aquired, _acquired);
 
     if (_index == pimpl_->current_item_) {
@@ -957,8 +942,7 @@ void MainWindow::itemAcquireSlot(int _index, bool _acquired)
         if (has_application_flag(item.flags_, ApplicationFlagE::Aquired) || has_application_flag(item.flags_, ApplicationFlagE::Default)) {
             enable_combo = true;
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_on.png"));
-        }
-        else {
+        } else {
             pimpl_->item_form_.acquire_button->setIcon(QIcon(":/images/acquire_off.png"));
         }
 #if 0
@@ -1053,17 +1037,18 @@ void MainWindow::onAquireButtonToggled(bool _checked)
             item.engine_index_,
             _checked,
             [this, index = pimpl_->current_item_](bool _acquired) {
-            emit itemAcquire(index, _acquired);
-        });
+                emit itemAcquire(index, _acquired);
+            });
     }
 }
 
-void MainWindow::onConfigureButtonClicked(bool _checked) {
+void MainWindow::onConfigureButtonClicked(bool _checked)
+{
     pimpl_->historyPush(
         nullptr,
         [this]() {
             pimpl_->showWidget(pimpl_->store_form_.configureWidget);
-    })();
+        })();
 }
 
 void MainWindow::imageDoubleClicked(QListWidgetItem* _item)
@@ -1073,8 +1058,8 @@ void MainWindow::imageDoubleClicked(QListWidgetItem* _item)
     pimpl_->historyPush(
         nullptr,
         [this, item_index = pimpl_->current_item_, image_index = pthumb->index_]() {
-            const auto&    item = pimpl_->list_model_.item(item_index);
-            const QString  path = QString::fromStdString(item.data_ptr_->configuration_.media_.entry_vec_[image_index].path_);
+            const auto&   item = pimpl_->list_model_.item(item_index);
+            const QString path = QString::fromStdString(item.data_ptr_->configuration_.media_.entry_vec_[image_index].path_);
 
             if (pimpl_->current_image_.load(path)) {
                 const int w = pimpl_->store_form_.centralwidget->width();
@@ -1140,31 +1125,25 @@ void MainWindow::buildChangedSlot(int _index)
         return;
     }
 
-    auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
+    auto&   item = pimpl_->list_model_.item(pimpl_->current_item_);
     QString build_id;
     if (_index == 0) {
-    }
-    else if (_index == 1) {
+    } else if (_index == 1) {
         build_id = app_item_public_release;
-    }
-    else if (_index == 2) {
+    } else if (_index == 2) {
         build_id = app_item_public_beta;
-    }
-    else if (_index == 3) {
+    } else if (_index == 3) {
         build_id = app_item_public_alpha;
-    }
-    else if (_index == 4) {
+    } else if (_index == 4) {
         build_id = app_item_invalid;
-    }
-    else if (has_application_flag(item.flags_, ApplicationFlagE::Owned) && _index == 5) {
+    } else if (has_application_flag(item.flags_, ApplicationFlagE::Owned) && _index == 5) {
         build_id = app_item_private_alpha;
-    }
-    else {
+    } else {
         build_id = pimpl_->item_form_.comboBox->itemText(_index);
     }
-    
+
     if (build_id != item.build_id_) {
-        AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(_index).toULongLong() };
+        AppItemEntry entry{pimpl_->item_form_.comboBox->itemData(_index).toULongLong()};
 
         if (!has_application_flag(item.flags_, ApplicationFlagE::Owned) && entry.state() >= AppItemStateE::ReviewRequest && entry.state() <= AppItemStateE::ReviewRejected) {
             pimpl_->item_form_.review_accept_button->show();
@@ -1177,19 +1156,17 @@ void MainWindow::buildChangedSlot(int _index)
                     item.engine_index_,
                     entry, static_cast<int>(AppItemStateE::ReviewStarted),
                     [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<myapps::front::core::Response>& _response_ptr) {
-                    solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
+                        solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
-                    pimpl_->engine().fetchItemEntries(
-                        engine_index,
-                        [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
-                            //called on another thread - need to move the data onto GUI thread
-                            emit itemEntries(index, _response_ptr);
-                        });
-                }
-                );
+                        pimpl_->engine().fetchItemEntries(
+                            engine_index,
+                            [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
+                                // called on another thread - need to move the data onto GUI thread
+                                emit itemEntries(index, _response_ptr);
+                            });
+                    });
             }
-        }
-        else {
+        } else {
             pimpl_->item_form_.review_accept_button->hide();
             pimpl_->item_form_.review_reject_button->hide();
         }
@@ -1208,44 +1185,42 @@ void MainWindow::buildChangedSlot(int _index)
             item.engine_index_,
             build_id,
             [this, index = pimpl_->current_item_](std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse>& _response_ptr) {
-            //called on another thread - need to move the data onto GUI thread
-            emit itemData(index, _response_ptr);
-        });
-    }
-    else {
+                // called on another thread - need to move the data onto GUI thread
+                emit itemData(index, _response_ptr);
+            });
+    } else {
         showMediaThumbnails(pimpl_->current_item_);
     }
 }
 
 void MainWindow::configureItemChangedSlot(QTreeWidgetItem* _pcurrent, QTreeWidgetItem* _pprevious)
 {
-    if (_pcurrent == nullptr) return;
+    if (_pcurrent == nullptr)
+        return;
 
     if (_pcurrent->parent() == pimpl_->pcurrent_build_parent_) {
         pimpl_->config_current_build_ = _pcurrent->text(0);
         pimpl_->configure_form_.stateComboBox->show();
-        
-        const myapps::utility::AppItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
+
+        const myapps::utility::AppItemEntry entry{_pcurrent->data(0, Qt::UserRole).toULongLong()};
 
         pimpl_->configureBuildPrepareStateComboBox(entry);
-    }
-    else if (_pcurrent->parent() == pimpl_->pcurrent_media_parent_)
-    {
+    } else if (_pcurrent->parent() == pimpl_->pcurrent_media_parent_) {
         pimpl_->config_current_media_ = _pcurrent->text(0);
         pimpl_->configure_form_.stateComboBox->show();
 
-        const myapps::utility::AppItemEntry entry{ _pcurrent->data(0, Qt::UserRole).toULongLong() };
+        const myapps::utility::AppItemEntry entry{_pcurrent->data(0, Qt::UserRole).toULongLong()};
 
         pimpl_->configureMediaPrepareStateComboBox(entry);
-    }
-    else {
+    } else {
         pimpl_->configure_form_.stateComboBox->hide();
     }
 
     pimpl_->configure_form_.frame->update();
 }
 
-void MainWindow::Data::configureMediaPrepareStateComboBox(const myapps::utility::AppItemEntry& _item) {
+void MainWindow::Data::configureMediaPrepareStateComboBox(const myapps::utility::AppItemEntry& _item)
+{
     using namespace myapps::utility;
     configure_form_.stateComboBox->clear();
     configure_form_.stateComboBox->setPlaceholderText(tr("Invalid"));
@@ -1255,7 +1230,8 @@ void MainWindow::Data::configureMediaPrepareStateComboBox(const myapps::utility:
     configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicRelease)), tr("Public Release"), static_cast<int>(AppItemStateE::PublicRelease));
 
     switch (_item.state()) {
-    case AppItemStateE::Invalid:break;
+    case AppItemStateE::Invalid:
+        break;
     case AppItemStateE::Trash:
         configure_form_.stateComboBox->setCurrentIndex(0);
         break;
@@ -1267,7 +1243,8 @@ void MainWindow::Data::configureMediaPrepareStateComboBox(const myapps::utility:
     }
 }
 
-void MainWindow::Data::configureBuildPrepareStateComboBox(const myapps::utility::AppItemEntry& _item) {
+void MainWindow::Data::configureBuildPrepareStateComboBox(const myapps::utility::AppItemEntry& _item)
+{
     using namespace myapps::utility;
     configure_form_.stateComboBox->clear();
     configure_form_.stateComboBox->setPlaceholderText(tr("Invalid"));
@@ -1279,12 +1256,10 @@ void MainWindow::Data::configureBuildPrepareStateComboBox(const myapps::utility:
         configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicAlpha)), tr("Public Alpha"), static_cast<int>(AppItemStateE::PublicAlpha));
         configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicBeta)), tr("Public Beta"), static_cast<int>(AppItemStateE::PublicBeta));
         configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PublicRelease)), tr("Public Release"), static_cast<int>(AppItemStateE::PublicRelease));
-    }
-    else if(_item.isFlagSet(AppItemFlagE::ReviewRejected)) {
+    } else if (_item.isFlagSet(AppItemFlagE::ReviewRejected)) {
         configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Trash)), tr("Trash"), static_cast<int>(AppItemStateE::Trash));
         configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(AppItemStateE::PrivateAlpha));
-    }
-    else {
+    } else {
         if (_item.state() != AppItemStateE::ReviewStarted) {
             configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::Trash)), tr("Trash"), static_cast<int>(AppItemStateE::Trash));
             configure_form_.stateComboBox->addItem(QIcon(build_status_to_image_name(AppItemStateE::PrivateAlpha)), tr("Private Alpha"), static_cast<int>(AppItemStateE::PrivateAlpha));
@@ -1293,7 +1268,8 @@ void MainWindow::Data::configureBuildPrepareStateComboBox(const myapps::utility:
     }
 
     switch (_item.state()) {
-    case AppItemStateE::Invalid:break;
+    case AppItemStateE::Invalid:
+        break;
     case AppItemStateE::Trash:
         configure_form_.stateComboBox->setCurrentIndex(0);
         break;
@@ -1329,7 +1305,8 @@ void MainWindow::Data::configureBuildPrepareStateComboBox(const myapps::utility:
     }
 }
 
-void MainWindow::configureStateChangedSlot(int _index) {
+void MainWindow::configureStateChangedSlot(int _index)
+{
     using namespace myapps::utility;
 
     auto pcurrent_item = pimpl_->configure_form_.treeWidget->currentItem();
@@ -1338,12 +1315,11 @@ void MainWindow::configureStateChangedSlot(int _index) {
         return;
     }
 
-    AppItemEntry item_entry{ pcurrent_item->data(0, Qt::UserRole).toULongLong() };
-    const int req_state = pimpl_->configure_form_.stateComboBox->itemData(_index).toInt();
-    if (static_cast<int>(item_entry.state()) != req_state)
-    {
-        //item_entry.state(static_cast<AppItemStateE>(req_state));
-        //pcurrent_item->setData(0, Qt::UserRole, item_entry.value());
+    AppItemEntry item_entry{pcurrent_item->data(0, Qt::UserRole).toULongLong()};
+    const int    req_state = pimpl_->configure_form_.stateComboBox->itemData(_index).toInt();
+    if (static_cast<int>(item_entry.state()) != req_state) {
+        // item_entry.state(static_cast<AppItemStateE>(req_state));
+        // pcurrent_item->setData(0, Qt::UserRole, item_entry.value());
         auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
 
         item_entry.name_ = pcurrent_item->text(0).toStdString();
@@ -1351,67 +1327,66 @@ void MainWindow::configureStateChangedSlot(int _index) {
             item.engine_index_,
             item_entry, req_state,
             [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<myapps::front::core::Response>& _response_ptr) {
-                solid_log(logger, Verbose, "ChangeAppItemState response: "<<_response_ptr->error_<<" message: "<<_response_ptr->message_);
-                
+                solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
+
                 pimpl_->engine().fetchItemEntries(
                     engine_index,
                     [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
-                        //called on another thread - need to move the data onto GUI thread
+                        // called on another thread - need to move the data onto GUI thread
                         emit itemEntries(index, _response_ptr);
                     });
-            }
-        );
+            });
     }
 }
 
-void MainWindow::onReviewAcceptButtonClicked(bool _checked) {
+void MainWindow::onReviewAcceptButtonClicked(bool _checked)
+{
     using namespace myapps::utility;
-    auto index = pimpl_->item_form_.comboBox->currentIndex();
-    AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(index).toULongLong() };
-    
+    auto         index = pimpl_->item_form_.comboBox->currentIndex();
+    AppItemEntry entry{pimpl_->item_form_.comboBox->itemData(index).toULongLong()};
+
     entry.name_ = pimpl_->item_form_.comboBox->itemText(index).toStdString();
-    auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
+    auto& item  = pimpl_->list_model_.item(pimpl_->current_item_);
 
     pimpl_->engine().changeAppItemState(
         item.engine_index_,
         entry, static_cast<int>(AppItemStateE::ReviewAccepted),
         [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<myapps::front::core::Response>& _response_ptr) {
-        solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
+            solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
-        pimpl_->engine().fetchItemEntries(
-            engine_index,
-            [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
-                //called on another thread - need to move the data onto GUI thread
-                emit itemEntries(index, _response_ptr);
-            });
-    }
-    );
+            pimpl_->engine().fetchItemEntries(
+                engine_index,
+                [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
+                    // called on another thread - need to move the data onto GUI thread
+                    emit itemEntries(index, _response_ptr);
+                });
+        });
 }
 
-void MainWindow::onReviewRejectButtonClicked(bool _checked) {
+void MainWindow::onReviewRejectButtonClicked(bool _checked)
+{
     using namespace myapps::utility;
-    auto index = pimpl_->item_form_.comboBox->currentIndex();
-    AppItemEntry entry{ pimpl_->item_form_.comboBox->itemData(index).toULongLong() };
+    auto         index = pimpl_->item_form_.comboBox->currentIndex();
+    AppItemEntry entry{pimpl_->item_form_.comboBox->itemData(index).toULongLong()};
 
     entry.name_ = pimpl_->item_form_.comboBox->itemText(index).toStdString();
-    auto& item = pimpl_->list_model_.item(pimpl_->current_item_);
+    auto& item  = pimpl_->list_model_.item(pimpl_->current_item_);
 
     pimpl_->engine().changeAppItemState(
         item.engine_index_,
         entry, static_cast<int>(AppItemStateE::ReviewRejected),
         [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<myapps::front::core::Response>& _response_ptr) {
-        solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
+            solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
-        pimpl_->engine().fetchItemEntries(
-            engine_index,
-            [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
-                //called on another thread - need to move the data onto GUI thread
-                emit itemEntries(index, _response_ptr);
-            });
-    }
-    );
+            pimpl_->engine().fetchItemEntries(
+                engine_index,
+                [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
+                    // called on another thread - need to move the data onto GUI thread
+                    emit itemEntries(index, _response_ptr);
+                });
+        });
 }
 
-} //namespace store
-} //namespace client
-} //namespace myapps
+} // namespace store
+} // namespace client
+} // namespace myapps
