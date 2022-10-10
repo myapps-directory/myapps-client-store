@@ -86,10 +86,10 @@ public:
         fetch_count_ = config_.start_fetch_count_;
     }
 
-    string localMediaPath(const string& _path, const string& _storage_id) const
+    string localMediaPath(const string& _path, const uint32_t _shard_id, const string& _storage_id) const
     {
         //TODO:
-        return "c:\\MyApps.space\\.m\\" + myapps::utility::hex_encode(_storage_id) + '\\' + _path;
+        return "c:\\MyApps.space\\.m\\" + to_string(_shard_id) + "\\" + myapps::utility::hex_encode(_storage_id) + '\\' + _path;
     }
 };
 
@@ -224,7 +224,7 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
         string build_request;
         {
             lock_guard<mutex> lock(pimpl_->mutex_);
-            req_ptr->app_id_ = pimpl_->app_dq_[i].app_id_;
+            req_ptr->application_id_ = pimpl_->app_dq_[i].app_id_;
             build_request = pimpl_->app_list_file_.find(pimpl_->app_dq_[i].app_uid_).name_;
         }
 
@@ -304,8 +304,8 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
         
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             for (auto& e : _rrecv_msg_ptr->configuration_.media_.entry_vec_) {
-                e.thumbnail_path_ = pimpl_->localMediaPath(e.thumbnail_path_, _rrecv_msg_ptr->media_storage_id_);
-                e.path_ = pimpl_->localMediaPath(e.path_, _rrecv_msg_ptr->media_storage_id_);
+                e.thumbnail_path_ = pimpl_->localMediaPath(e.thumbnail_path_, _rrecv_msg_ptr->media_shard_id_, _rrecv_msg_ptr->media_storage_id_);
+                e.path_ = pimpl_->localMediaPath(e.path_, _rrecv_msg_ptr->media_shard_id_, _rrecv_msg_ptr->media_storage_id_);
                 solid_log(logger, Info, "Thumbnail path: " << e.thumbnail_path_);
             }
         }
@@ -315,7 +315,7 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
     auto req_ptr = make_shared<myapps::front::main::FetchBuildConfigurationRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
-        req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
+        req_ptr->application_id_ = pimpl_->app_dq_[_index].app_id_;
     }
 
     req_ptr->lang_  = pimpl_->config_.language_;
@@ -347,7 +347,7 @@ void Engine::fetchItemEntries(const size_t _index, OnFetchAppItemsT _fetch_fnc)
     auto req_ptr = make_shared<myapps::front::main::FetchAppRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
-        req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
+        req_ptr->application_id_ = pimpl_->app_dq_[_index].app_id_;
     }
 
     req_ptr->os_id_ = pimpl_->config_.os_;
@@ -411,7 +411,7 @@ void Engine::changeAppItemState(
     auto req_ptr = make_shared<myapps::front::main::ChangeAppItemStateRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
-        req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
+        req_ptr->application_id_ = pimpl_->app_dq_[_index].app_id_;
     }
 
     req_ptr->os_id_ = pimpl_->config_.os_;
