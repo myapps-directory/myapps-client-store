@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
-project(MyAppsStore VERSION 1.8)
+project(MyAppsStore VERSION 1.9)
 
 set(EXTERNAL_DIR "" CACHE PATH "External dependencies folder")
 
@@ -22,7 +22,7 @@ endif()
 
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE)
 
-set(QT5PREFIX_DIR "" CACHE PATH "QT Prefix directory")
+set(QTPREFIX_DIR "" CACHE PATH "QT Prefix directory")
 set(CMAKE_CONFIGURATION_TYPES "release" CACHE STRING "" FORCE)
 set(CONFIGURATION_TYPE "release")
 
