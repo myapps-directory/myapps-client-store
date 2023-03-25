@@ -75,7 +75,7 @@ using SchedulerT    = frame::Scheduler<frame::Reactor>;
 //-----------------------------------------------------------------------------
 namespace {
 
-constexpr string_view service_name("ola_client_store");
+constexpr string_view service_name("myapps_client_store");
 const solid::LoggerT logger("myapps::client::store");
 
 struct Parameters {

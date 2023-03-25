@@ -81,7 +81,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
     vector<wstring>         args;
     auto&                   env_path = env["Path"];
     auto                    path_vec = env_path.to_vector();
-    string                  ola_bin_path;
+    string                  bin_path;
 
     {
         assert(matches("c:\\users\\test\\something\\MyApps.space\\bin", "MyApps.space\\bin"));
@@ -90,7 +90,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
 
     {
         string new_paths;
-        //we need to put the new qt_path before the OLA/bin path
+        //we need to put the new qt_path before the myapps/bin path
         for (const auto& p : path_vec) {
             if (matches(p, "MyApps.space\\bin")) {
                 if (!new_paths.empty()) {
@@ -103,7 +103,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
                 }
 
                 new_paths += p;
-                ola_bin_path = p;
+                bin_path = p;
             } else if (!p.empty()) {
                 if (!new_paths.empty()) {
                     new_paths += ';';
@@ -112,8 +112,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
             }
         }
 
-        if (ola_bin_path.empty()) {
-            //ola path not found,
+        if (bin_path.empty()) {
+            //myapps path not found,
             env_path.append(qt_path.string());
         } else if (!qt_path.empty()) {
             env_path.assign(new_paths);
@@ -127,8 +127,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
             //}
             //qt_plugin_path += "plugins";
             env["QT_PLUGIN_PATH"].assign(qt_plugin_path);
-        } else if (!ola_bin_path.empty()) {
-            qt_plugin_path = ola_bin_path;
+        } else if (!bin_path.empty()) {
+            qt_plugin_path = bin_path;
             //if (qt_plugin_path.back() != '\\') {
             //    qt_plugin_path += '\\';
             //}
@@ -137,12 +137,12 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
         }
     }
 
-    if (!ola_bin_path.empty()) {
+    if (!bin_path.empty()) {
         args.emplace_back(L"--secure-prefix");
-        if (ola_bin_path.back() == '\\') {
-            ola_bin_path.pop_back();
+        if (bin_path.back() == '\\') {
+            bin_path.pop_back();
         }
-        args.emplace_back(widen(ola_bin_path + "\\certs"));
+        args.emplace_back(widen(bin_path + "\\certs"));
     }
 
     for (int i = 1; i < wargc; ++i) {
@@ -152,7 +152,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
     boost::filesystem::path app_path = wargv[0];
 
     app_path = app_path.remove_filename();
-    app_path /= "ola_client_store.exe";
+    app_path /= "myapps_client_store.exe";
 
     boost::process::spawn(app_path, args);
     return 0;

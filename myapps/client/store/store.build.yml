@@ -25,8 +25,8 @@ configurations:
     oses:
       - Windows10x86_64
     exes:
-      - ola_client_launcher.exe
-      - ola_client_store.exe
+      - myapps_client_launcher.exe
+      - myapps_client_store.exe
     mount-points: []
     properties:
       name: ${name}
@@ -35,8 +35,8 @@ configurations:
       company: ${company}
     shortcuts:
       - name: ${name}
-        command: ola_client_launcher.exe
-        icon: ola_store_bag.ico
+        command: myapps_client_launcher.exe
+        icon: store_bag.ico
         arguments: ""
         run_folder: ""
     media:

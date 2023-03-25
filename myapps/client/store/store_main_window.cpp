@@ -536,7 +536,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
 
         oss << utility::VERSION_MAJOR << '.' << utility::VERSION_MINOR;
         // oss << " - " << client::utility::version_vcs_branch();
-        oss << " - <a href=https://github.com/vipalade/ola-client-store/tree/" << utility::version_vcs_commit() << ">" << utility::version_vcs_commit() << "</a>";
+        oss << " - <a href=https://github.com/myapps-space/myapps-client-store/tree/" << utility::version_vcs_commit() << ">" << utility::version_vcs_commit() << "</a>";
 
         pimpl_->about_form_.label_version->setText(QString::fromStdString(oss.str()));
     }
@@ -586,7 +586,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
             ostringstream oss;
             oss << "MyApps.space Store, uses the LGPL, unchanged version of <a href=https://www.qt.io>Qt</a>" << endl
                 << endl;
-            oss << "It uses the Qt libraries installed by the related open source project - <a href=https://github.com/vipalade/ola-client>MyApps.store Client</a>" << endl
+            oss << "It uses the Qt libraries installed by the related open source project - <a href=https://github.com/myapps-space/myapps-client>MyApps.store Client</a>" << endl
                 << endl;
             oss << "In order to use MyApps.space Store application with your own Qt libraries, please follow the below steps:" << endl;
             oss << " * Step 1" << endl;
