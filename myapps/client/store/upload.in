@@ -19,8 +19,8 @@ createBuild()
     local BUILDID=$2
     local MEDIAID=$3
 
-    cp myapps_client_launcher.exe tmp/build
-    cp myapps_client_store.exe tmp/build
+    cp myapps_launcher.exe tmp/build
+    cp myapps_store.exe tmp/build
 	cp "$PROJECT_ROOT/myapps/client/store/images/store_bag.ico" tmp/build
 	cp "$PROJECT_ROOT/myapps/client/store/images/store_bag.png" tmp
 

@@ -82,7 +82,7 @@ if(${Qt6Widgets_FOUND})
 
 
         add_executable(
-            myapps_client_launcher
+            myapps_launcher
             WIN32
             launcher_main.cpp
         )
@@ -92,14 +92,14 @@ if(${Qt6Widgets_FOUND})
             env_main.cpp
         )
 
-        add_dependencies(myapps_client_launcher myapps_store)
+        add_dependencies(myapps_launcher myapps_store)
         target_link_libraries(
-            myapps_client_launcher
+            myapps_launcher
             ${SYS_BASIC_LIBS}
             ${SYS_DYNAMIC_LOAD_LIB}
         )
 
-        target_include_directories(myapps_client_launcher PRIVATE
+        target_include_directories(myapps_launcher PRIVATE
             ${Boost_INCLUDE_DIRS}
         )
 

@@ -152,7 +152,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
     boost::filesystem::path app_path = wargv[0];
 
     app_path = app_path.remove_filename();
-    app_path /= "myapps_client_store.exe";
+    app_path /= "myapps_store.exe";
 
     boost::process::spawn(app_path, args);
     return 0;
