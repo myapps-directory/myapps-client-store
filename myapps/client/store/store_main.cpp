@@ -32,7 +32,7 @@
 #include "solid/frame/mprpc/mprpcsocketstub_openssl.hpp"
 #include "solid/frame/mprpc/mprpcprotocol_serialization_v3.hpp"
 
-#include "solid/utility/workpool.hpp"
+#include "solid/utility/threadpool.hpp"
 
 #include "myapps/common/utility/encode.hpp"
 #include "myapps/common/utility/version.hpp"
@@ -67,9 +67,6 @@ using namespace myapps::front;
 using namespace myapps::client::store;
 namespace fs = boost::filesystem;
 
-using AioSchedulerT = frame::Scheduler<frame::aio::Reactor>;
-using SchedulerT    = frame::Scheduler<frame::Reactor>;
-
 //-----------------------------------------------------------------------------
 //      Parameters
 //-----------------------------------------------------------------------------
@@ -77,6 +74,10 @@ namespace {
 
 constexpr string_view service_name("myapps_client_store");
 const solid::LoggerT logger("myapps::client::store");
+
+using AioSchedulerT = frame::Scheduler<frame::aio::Reactor<frame::mprpc::EventT>>;
+using SchedulerT    = frame::Scheduler<frame::Reactor<Event<32>>>;
+using CallPoolT     = ThreadPool<Function<void()>, Function<void()>>;
 
 struct Parameters {
     vector<string> debug_modules;
@@ -307,8 +308,8 @@ int main(int argc, char* argv[])
     frame::Manager               manager;
     frame::ServiceT              service{manager};
     frame::mprpc::ServiceT       front_rpc_service{manager};
-    lockfree::CallPoolT<void(), void> cwp{WorkPoolConfiguration(1)};
-    frame::aio::Resolver              resolver([&cwp](std::function<void()>&& _fnc) { cwp.push(std::move(_fnc)); });
+    CallPoolT                    cwp{1, 1000, 0, [](const size_t) {}, [](const size_t) {}};
+    frame::aio::Resolver         resolver([&cwp](std::function<void()>&& _fnc) { cwp.pushOne(std::move(_fnc)); });
     client::utility::FileMonitor file_monitor_;
     Authenticator                authenticator(front_rpc_service, file_monitor_, env_config_path_prefix(), []() { QApplication::exit(); });
     Engine                       engine(front_rpc_service);
@@ -355,7 +356,7 @@ int main(int argc, char* argv[])
                                    string&&       _ubuild_id,
                                    vector<char>&& _uimage,
                                    const uint32_t  _flags) {
-            cwp.push(
+            cwp.pushOne(
                 [_index, _count, &main_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), build_id = std::move(_ubuild_id), image = std::move(_uimage), _flags]() {
                     main_window.model().prepareAndPushItem(_index, _count, name, company, brief, build_id, image, _flags);
                 });
@@ -363,7 +364,7 @@ int main(int argc, char* argv[])
         config.on_fetch_error_fnc_ = [&cwp, &main_window](
                                          const size_t _index,
                                          const size_t _count) {
-            cwp.push(
+            cwp.pushOne(
                 [_index, _count, &main_window]() {
                     main_window.model().prepareAndPushItem(_index, _count);
                 });
