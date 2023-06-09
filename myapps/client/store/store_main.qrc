@@ -8,9 +8,12 @@
         <file>images/review.png</file>
         <file>images/back.png</file>
         <file>images/home.png</file>
+		<file>images/back_d.png</file>
+		<file>images/home_d.png</file>
         <file>images/config.png</file>
         <file>images/account.png</file>
         <file>images/about.png</file>
+		<file>images/about_d.png</file>
         <file>images/private_alpha.png</file>
         <file>images/review_requested.png</file>
         <file>images/review_started.png</file>

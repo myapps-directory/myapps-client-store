@@ -179,6 +179,7 @@ private slots:
     void configureItemChangedSlot(QTreeWidgetItem* current, QTreeWidgetItem* previous);
 
     void configureStateChangedSlot(int _index);
+    void onColorSchemeChanged(Qt::ColorScheme scheme);
 
 private:
     void closeEvent(QCloseEvent*) override;

@@ -25,7 +25,6 @@ configurations:
     oses:
       - Windows10x86_64
     exes:
-      - myapps_launcher.exe
       - myapps_store.exe
     mount-points: []
     properties:
@@ -35,7 +34,7 @@ configurations:
       company: ${company}
     shortcuts:
       - name: ${name}
-        command: myapps_launcher.exe
+        command: myapps_store.exe
         icon: store_bag.ico
         arguments: ""
         run_folder: ""

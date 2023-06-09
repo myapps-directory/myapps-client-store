@@ -16,6 +16,7 @@
 #include <QTextLayout>
 #include <QToolBar>
 #include <QToolButton>
+#include <QStyleHints>
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
@@ -74,12 +75,19 @@ struct MainWindow::Data {
     QString           config_current_build_;
     QString           config_current_media_;
 
+
+    static bool isColorSchemeDark()
+    {
+        return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+    }
+    
+
     Data(Engine& _rengine, MainWindow* _pw)
         : list_model_(_rengine, sizes_)
-        , back_action_(QIcon(":/images/back.png"), tr("&Back"), _pw)
-        , home_action_(QIcon(":/images/home.png"), tr("&Home"), _pw)
-        , account_action_(QIcon(":/images/account.png"), tr("&Account"), _pw)
-        , about_action_(QIcon(":/images/about.png"), tr("A&bout"), _pw)
+        , back_action_(QIcon(isColorSchemeDark() ? ":/images/back_d.png" : ":/images/back.png"), tr("&Back"), _pw)
+        , home_action_(QIcon(isColorSchemeDark() ? ":/images/home_d.png" : ":/images/home.png"), tr("&Home"), _pw)
+        , account_action_(QIcon(isColorSchemeDark() ? ":/images/account.png" : ":/images/account.png"), tr("&Account"), _pw)
+        , about_action_(QIcon(isColorSchemeDark() ? ":/images/about_d.png" : ":/images/about.png"), tr("&About"), _pw)
         , tool_bar_(_pw)
         , config_menu_(_pw)
     {
@@ -427,7 +435,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->about_form_.image_label->setPixmap(QPixmap(":/images/store_bag.png"));
 
     // setWindowFlags(Qt::Drawer);
-    {
+    if(false){
         int   aElements[2] = {COLOR_WINDOW, COLOR_ACTIVECAPTION};
         DWORD aOldColors[2];
 
@@ -441,6 +449,10 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
         setPalette(pal);
     }
     installEventFilter(this);
+
+    auto* hints = QGuiApplication::styleHints();
+
+    connect(hints, SIGNAL(colorSchemeChanged(Qt::ColorScheme)), this, SLOT(onColorSchemeChanged(Qt::ColorScheme)));
 
     connect(this, SIGNAL(offlineSignal(bool)), this, SLOT(onOffline(bool)), Qt::QueuedConnection);
     connect(this, SIGNAL(closeSignal()), this, SLOT(close()), Qt::QueuedConnection);
@@ -1337,6 +1349,13 @@ void MainWindow::configureStateChangedSlot(int _index)
                     });
             });
     }
+}
+
+void MainWindow::onColorSchemeChanged(Qt::ColorScheme scheme)
+{
+    pimpl_->about_action_.setIcon(QIcon(Data::isColorSchemeDark() ? ":/images/about_d.png" : ":/images/about.png"));
+    pimpl_->home_action_.setIcon(QIcon(Data::isColorSchemeDark() ? ":/images/home_d.png" : ":/images/home.png"));
+    pimpl_->back_action_.setIcon(QIcon(Data::isColorSchemeDark() ? ":/images/back_d.png" : ":/images/back.png"));
 }
 
 void MainWindow::onReviewAcceptButtonClicked(bool _checked)

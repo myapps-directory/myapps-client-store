@@ -80,28 +80,29 @@ if(${Qt6Widgets_FOUND})
             install(DIRECTORY $<TARGET_FILE_DIR:myapps_store>//windeployqt/ DESTINATION bin PATTERN "windeployqt/*")
         endif()
 
+       if(FALSE)
+            add_executable(
+                myapps_launcher
+                WIN32
+                launcher_main.cpp
+            )
 
-        add_executable(
-            myapps_launcher
-            WIN32
-            launcher_main.cpp
-        )
+            add_executable(
+                myapps_client_env
+                env_main.cpp
+            )
 
-        add_executable(
-            myapps_client_env
-            env_main.cpp
-        )
+            add_dependencies(myapps_launcher myapps_store)
+            target_link_libraries(
+                myapps_launcher
+                ${SYS_BASIC_LIBS}
+                ${SYS_DYNAMIC_LOAD_LIB}
+            )
 
-        add_dependencies(myapps_launcher myapps_store)
-        target_link_libraries(
-            myapps_launcher
-            ${SYS_BASIC_LIBS}
-            ${SYS_DYNAMIC_LOAD_LIB}
-        )
-
-        target_include_directories(myapps_launcher PRIVATE
-            ${Boost_INCLUDE_DIRS}
-        )
+            target_include_directories(myapps_launcher PRIVATE
+                ${Boost_INCLUDE_DIRS}
+            )
+        endif()
 
     elseif(APPLE)
         add_executable(
