@@ -433,7 +433,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->list_form_.listView->verticalScrollBar()->setSingleStep(20 * pimpl_->scale_y_);
 
     pimpl_->about_form_.image_label->setPixmap(QPixmap(":/images/store_bag.png"));
-
+    pimpl_->store_form_.statusbar->showMessage(tr("Offline"));
     // setWindowFlags(Qt::Drawer);
     if(false){
         int   aElements[2] = {COLOR_WINDOW, COLOR_ACTIVECAPTION};
@@ -454,7 +454,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
 
     connect(hints, SIGNAL(colorSchemeChanged(Qt::ColorScheme)), this, SLOT(onColorSchemeChanged(Qt::ColorScheme)));
 
-    connect(this, SIGNAL(offlineSignal(bool)), this, SLOT(onOffline(bool)), Qt::QueuedConnection);
+    connect(this, SIGNAL(onlineSignal(bool)), this, SLOT(onOnline(bool)), Qt::QueuedConnection);
     connect(this, SIGNAL(closeSignal()), this, SLOT(close()), Qt::QueuedConnection);
     connect(pimpl_->list_form_.listView, SIGNAL(doubleClicked(const QModelIndex&)), this, SLOT(onItemDoubleClicked(const QModelIndex&)));
     connect(pimpl_->item_form_.acquire_button, SIGNAL(toggled(bool)), this, SLOT(onAquireButtonToggled(bool)));
@@ -619,9 +619,10 @@ ListModel& MainWindow::model()
     return pimpl_->list_model_;
 }
 
-void MainWindow::onOffline(bool _b)
+void MainWindow::onOnline(bool _is_online)
 {
-    solid_log(logger, Verbose, "" << _b);
+    solid_log(logger, Verbose, "" << _is_online);
+    pimpl_->store_form_.statusbar->showMessage(_is_online ? tr("Online") : tr("Offline"));
 }
 
 void MainWindow::onItemDoubleClicked(const QModelIndex& _index)

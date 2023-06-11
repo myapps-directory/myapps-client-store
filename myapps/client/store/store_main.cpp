@@ -320,10 +320,12 @@ int main(int argc, char* argv[])
 
     authenticator.on_offline_fnc_ = [&main_window]() {
         //main_window.setWindowTitle(QApplication::tr("MyApps.space Store - Offline"));
+        main_window.onlineSignal(false);
     };
 
     authenticator.on_online_fnc_ = [&main_window]() {
         //main_window.setWindowTitle(QApplication::tr("MyApps.space Store"));
+        main_window.onlineSignal(true);
     };
 
     file_monitor_.start();
@@ -628,8 +630,9 @@ void front_configure_service(Authenticator& _rauth, const Parameters& _params, f
     cfg.client.name_resolve_fnc = frame::mprpc::InternetResolverF(_rres, myapps::front::default_port());
 
     cfg.client.connection_start_state     = frame::mprpc::ConnectionState::Passive;
-    cfg.pool_max_active_connection_count  = 4;
-    cfg.pool_max_pending_connection_count = 4;
+    cfg.client.connection_timeout_keepalive = std::chrono::seconds(10);
+    cfg.pool_max_active_connection_count  = 2;
+    cfg.pool_max_pending_connection_count = 2;
 
     cfg.connection_stop_fnc = [&_rauth](frame::mprpc::ConnectionContext& _rctx) {
         _rauth.onConnectionStop(_rctx);

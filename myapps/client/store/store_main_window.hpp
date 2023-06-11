@@ -152,13 +152,13 @@ private:
     void resizeEvent(QResizeEvent* event) override;
 signals:
     void closeSignal();
-    void offlineSignal(bool);
+    void onlineSignal(bool);
     void itemData(int _index, std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse> _response_ptr);
     void itemEntries(int _index, std::shared_ptr<myapps::front::main::FetchAppResponse> _response_ptr);
     void itemAcquire(int _index, bool _acquired);
 
 private slots:
-    void onOffline(bool);
+    void onOnline(bool);
     void onItemDoubleClicked(const QModelIndex&);
     void onAquireButtonToggled(bool _checked);
     void onConfigureButtonClicked(bool _checked);

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
-project(MyAppsStore VERSION 1.9)
+project(MyAppsStore VERSION 1.10)
 
 set(EXTERNAL_DIR "" CACHE PATH "External dependencies folder")
 
