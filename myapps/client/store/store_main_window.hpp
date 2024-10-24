@@ -50,7 +50,7 @@ struct ListItem {
     QString build_id_;
     uint32_t flags_;
 
-    std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse> data_ptr_;
+    solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse> data_ptr_;
 
     void paint(
         QPainter* painter, const Sizes& _rszs,
@@ -59,8 +59,8 @@ struct ListItem {
 };
 
 Q_DECLARE_METATYPE(const ListItem*)
-Q_DECLARE_METATYPE(std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse>)
-Q_DECLARE_METATYPE(std::shared_ptr<myapps::front::main::FetchAppResponse>)
+Q_DECLARE_METATYPE(solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse>)
+Q_DECLARE_METATYPE(solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse>)
 
 
 class ListModel : public QAbstractListModel {
@@ -153,8 +153,8 @@ private:
 signals:
     void closeSignal();
     void onlineSignal(bool);
-    void itemData(int _index, std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse> _response_ptr);
-    void itemEntries(int _index, std::shared_ptr<myapps::front::main::FetchAppResponse> _response_ptr);
+    void itemData(int _index, solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse> _response_ptr);
+    void itemEntries(int _index, solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse> _response_ptr);
     void itemAcquire(int _index, bool _acquired);
 
 private slots:
@@ -164,8 +164,8 @@ private slots:
     void onConfigureButtonClicked(bool _checked);
     void onReviewAcceptButtonClicked(bool _checked);
     void onReviewRejectButtonClicked(bool _checked);
-    void itemDataSlot(int _index, std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse> _response_ptr);
-    void itemEntriesSlot(int _index, std::shared_ptr<myapps::front::main::FetchAppResponse> _response_ptr);
+    void itemDataSlot(int _index, solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse> _response_ptr);
+    void itemEntriesSlot(int _index, solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse> _response_ptr);
     void itemAcquireSlot(int _index, bool _acquired);
     void imageDoubleClicked(QListWidgetItem*);
 
@@ -187,7 +187,7 @@ private:
     void showMediaThumbnails(int _index);
     void showItem(int _index);
 
-    void prepareConfigureForm(int _index, std::shared_ptr<myapps::front::main::FetchAppResponse> _response_ptr);
+    void prepareConfigureForm(int _index, solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse> _response_ptr);
 
 private:
     struct Data;

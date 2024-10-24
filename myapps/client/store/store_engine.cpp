@@ -109,14 +109,14 @@ void Engine::start(Configuration&& _rcfg)
 
     pimpl_->app_list_file_.load(pimpl_->config_.app_list_file_path_);
 
-    auto req_ptr = make_shared<front::main::ListAppsRequest>();
+    auto req_ptr = frame::mprpc::make_message<front::main::ListAppsRequest>();
     solid_log(logger, Info, "Request all Applications");
     //A - all applications
     req_ptr->choice_ = 'A';
     auto lambda      = [this](
                       frame::mprpc::ConnectionContext&          _rctx,
-                      std::shared_ptr<front::main::ListAppsRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<front::main::ListAppsResponse>& _rrecv_msg_ptr,
+                      frame::mprpc::MessagePointerT<front::main::ListAppsRequest>&  _rsent_msg_ptr,
+                      frame::mprpc::MessagePointerT<front::main::ListAppsResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                    _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             for (auto& app : _rrecv_msg_ptr->app_vec_) {
@@ -137,7 +137,7 @@ void Engine::start(Configuration&& _rcfg)
             solid_log(logger, Info, "ListAppsResponse error: " << _rrecv_msg_ptr->error_);
         }
     };
-    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+    pimpl_->rrpc_service_.sendRequest({pimpl_->config_.front_endpoint_}, req_ptr, lambda);
 
 
 }
@@ -146,7 +146,7 @@ void Engine::stop()
 {
 }
 
-void Engine::requestAquired(std::shared_ptr<front::main::ListAppsRequest>& _rreq_msg)
+void Engine::requestAquired(frame::mprpc::MessagePointerT<front::main::ListAppsRequest>& _rreq_msg)
 {
     auto req_ptr = std::move(_rreq_msg);
 
@@ -154,8 +154,8 @@ void Engine::requestAquired(std::shared_ptr<front::main::ListAppsRequest>& _rreq
     req_ptr->choice_ = 'a';
     auto lambda      = [this](
                       frame::mprpc::ConnectionContext&          _rctx,
-                      std::shared_ptr<front::main::ListAppsRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<front::main::ListAppsResponse>& _rrecv_msg_ptr,
+                      frame::mprpc::MessagePointerT<front::main::ListAppsRequest>&  _rsent_msg_ptr,
+                      frame::mprpc::MessagePointerT<front::main::ListAppsResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                    _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             for (auto& a : _rrecv_msg_ptr->app_vec_) {
@@ -172,10 +172,10 @@ void Engine::requestAquired(std::shared_ptr<front::main::ListAppsRequest>& _rreq
             solid_log(logger, Info, "ListAppsResponse error: " << _rrecv_msg_ptr->error_);
         }
     };
-    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+    pimpl_->rrpc_service_.sendRequest({pimpl_->config_.front_endpoint_}, req_ptr, lambda);
 }
 
-void Engine::requestDefault(std::shared_ptr<front::main::ListAppsRequest>& _rreq_msg)
+void Engine::requestDefault(frame::mprpc::MessagePointerT<front::main::ListAppsRequest>& _rreq_msg)
 {
     auto req_ptr = std::move(_rreq_msg);
 
@@ -183,8 +183,8 @@ void Engine::requestDefault(std::shared_ptr<front::main::ListAppsRequest>& _rreq
     req_ptr->choice_ = 'd';
     auto lambda      = [this](
                       frame::mprpc::ConnectionContext&          _rctx,
-                      std::shared_ptr<front::main::ListAppsRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<front::main::ListAppsResponse>& _rrecv_msg_ptr,
+                      frame::mprpc::MessagePointerT<front::main::ListAppsRequest>&  _rsent_msg_ptr,
+                      frame::mprpc::MessagePointerT<front::main::ListAppsResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                    _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             for (auto& a : _rrecv_msg_ptr->app_vec_) {
@@ -201,7 +201,7 @@ void Engine::requestDefault(std::shared_ptr<front::main::ListAppsRequest>& _rreq
             solid_log(logger, Info, "ListAppsResponse error: " << _rrecv_msg_ptr->error_);
         }
     };
-    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+    pimpl_->rrpc_service_.sendRequest({pimpl_->config_.front_endpoint_}, req_ptr, lambda);
 }
 
 bool Engine::requestMore(const size_t _index, const size_t _count_hint)
@@ -220,7 +220,7 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
     }
     for (size_t i = _index; i < last_index; ++i) {
 
-        auto req_ptr = make_shared<myapps::front::main::FetchBuildConfigurationRequest>();
+        auto req_ptr = frame::mprpc::make_message<myapps::front::main::FetchBuildConfigurationRequest>();
         string build_request;
         {
             lock_guard<mutex> lock(pimpl_->mutex_);
@@ -231,8 +231,8 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
 
         auto lambda = [this, i, build_request](
                           frame::mprpc::ConnectionContext&                              _rctx,
-                          std::shared_ptr<myapps::front::main::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
-                          std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
+                          frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
+                          frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
                           ErrorConditionT const&                                        _rerror) mutable {
             if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
                 solid_log(logger, Info, "Response Application: " << _rrecv_msg_ptr->configuration_.property_vec_[0].second<< " "<< _rrecv_msg_ptr->image_blob_.size());
@@ -265,7 +265,7 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
         req_ptr->property_vec_.emplace_back("company");
         req_ptr->property_vec_.emplace_back("brief");
 
-        pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+        pimpl_->rrpc_service_.sendRequest({pimpl_->config_.front_endpoint_}, req_ptr, lambda);
     }
     return true;
 }
@@ -298,8 +298,8 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
 {
     auto lambda = [this, _fetch_fnc](
         frame::mprpc::ConnectionContext& _rctx,
-        std::shared_ptr<myapps::front::main::FetchBuildConfigurationRequest>& _rsent_msg_ptr,
-        std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
+        frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationRequest>& _rsent_msg_ptr,
+        frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
         ErrorConditionT const& _rerror) {
         
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
@@ -312,7 +312,7 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
         _fetch_fnc(_rrecv_msg_ptr);
     };
 
-    auto req_ptr = make_shared<myapps::front::main::FetchBuildConfigurationRequest>();
+    auto req_ptr = frame::mprpc::make_message<myapps::front::main::FetchBuildConfigurationRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->application_id_ = pimpl_->app_dq_[_index].app_id_;
@@ -330,21 +330,21 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
     req_ptr->property_vec_.emplace_back("description");
     req_ptr->property_vec_.emplace_back("release");
 
-    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+    pimpl_->rrpc_service_.sendRequest({pimpl_->config_.front_endpoint_}, req_ptr, lambda);
 }
 
 void Engine::fetchItemEntries(const size_t _index, OnFetchAppItemsT _fetch_fnc)
 {
     auto lambda = [this, _fetch_fnc](
         frame::mprpc::ConnectionContext& _rctx,
-        std::shared_ptr<myapps::front::main::FetchAppRequest>& _rsent_msg_ptr,
-        std::shared_ptr<myapps::front::main::FetchAppResponse>& _rrecv_msg_ptr,
+        frame::mprpc::MessagePointerT<myapps::front::main::FetchAppRequest>& _rsent_msg_ptr,
+        frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse>& _rrecv_msg_ptr,
         ErrorConditionT const& _rerror) {
 
             _fetch_fnc(_rrecv_msg_ptr);
     };
 
-    auto req_ptr = make_shared<myapps::front::main::FetchAppRequest>();
+    auto req_ptr = frame::mprpc::make_message<myapps::front::main::FetchAppRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->application_id_ = pimpl_->app_dq_[_index].app_id_;
@@ -352,15 +352,15 @@ void Engine::fetchItemEntries(const size_t _index, OnFetchAppItemsT _fetch_fnc)
 
     req_ptr->os_id_ = pimpl_->config_.os_;
 
-    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+    pimpl_->rrpc_service_.sendRequest({pimpl_->config_.front_endpoint_}, req_ptr, lambda);
 }
 
 void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItemT _fetch_fnc)
 {
     auto lambda = [this, _fetch_fnc](
                       frame::mprpc::ConnectionContext&                _rctx,
-                      std::shared_ptr<myapps::front::main::AcquireAppRequest>& _rsent_msg_ptr,
-                      std::shared_ptr<myapps::front::core::Response>&          _rrecv_msg_ptr,
+                      frame::mprpc::MessagePointerT<myapps::front::main::AcquireAppRequest>& _rsent_msg_ptr,
+                      frame::mprpc::MessagePointerT<myapps::front::core::Response>&          _rrecv_msg_ptr,
                       ErrorConditionT const&                          _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             _fetch_fnc(_rsent_msg_ptr->acquire_);
@@ -368,7 +368,7 @@ void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItem
             _fetch_fnc(false);
         }
     };
-    auto req_ptr = make_shared<myapps::front::main::AcquireAppRequest>();
+    auto req_ptr = frame::mprpc::make_message<myapps::front::main::AcquireAppRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->app_id_ = pimpl_->app_dq_[_index].app_id_;
@@ -376,7 +376,7 @@ void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItem
 
     req_ptr->acquire_ = _acquire;
 
-    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+    pimpl_->rrpc_service_.sendRequest({pimpl_->config_.front_endpoint_}, req_ptr, lambda);
 }
 
 void Engine::acquireBuild(const size_t _index, const std::string& _build_id) {
@@ -401,14 +401,14 @@ void Engine::changeAppItemState(
 ) {
     auto lambda = [this, _on_response_fnc](
         frame::mprpc::ConnectionContext& _rctx,
-        std::shared_ptr<myapps::front::main::ChangeAppItemStateRequest>& _rsent_msg_ptr,
-        std::shared_ptr<myapps::front::core::Response>& _rrecv_msg_ptr,
+        frame::mprpc::MessagePointerT<myapps::front::main::ChangeAppItemStateRequest>& _rsent_msg_ptr,
+        frame::mprpc::MessagePointerT<myapps::front::core::Response>& _rrecv_msg_ptr,
         ErrorConditionT const& _rerror) {
 
             _on_response_fnc(_rrecv_msg_ptr);
     };
 
-    auto req_ptr = make_shared<myapps::front::main::ChangeAppItemStateRequest>();
+    auto req_ptr = frame::mprpc::make_message<myapps::front::main::ChangeAppItemStateRequest>();
     {
         lock_guard<mutex> lock(pimpl_->mutex_);
         req_ptr->application_id_ = pimpl_->app_dq_[_index].app_id_;
@@ -418,7 +418,7 @@ void Engine::changeAppItemState(
     req_ptr->item_ = _app_item;
     req_ptr->new_state_ = _req_state;
 
-    pimpl_->rrpc_service_.sendRequest(pimpl_->config_.front_endpoint_.c_str(), req_ptr, lambda);
+    pimpl_->rrpc_service_.sendRequest({pimpl_->config_.front_endpoint_}, req_ptr, lambda);
 }
 
 } //namespace store

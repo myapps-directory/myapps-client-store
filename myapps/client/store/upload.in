@@ -19,6 +19,7 @@ createBuild()
     local BUILDID=$2
     local MEDIAID=$3
 
+    cp myapps_launcher.exe tmp/build
     cp myapps_store.exe tmp/build
     cp -r certs tmp/build
     cp -r generic tmp/build

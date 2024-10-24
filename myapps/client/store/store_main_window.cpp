@@ -407,8 +407,8 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     , pimpl_(solid::make_pimpl<Data>(_rengine, this))
 {
     qRegisterMetaType<VectorPairStringT>("VectorPairStringT");
-    qRegisterMetaType<std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse>>("std::shared_ptr<myapps::front::FetchBuildConfigurationResponse>");
-    qRegisterMetaType<std::shared_ptr<myapps::front::main::FetchAppResponse>>("std::shared_ptr<myapps::front::FetchAppResponse>");
+    qRegisterMetaType<solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse>>("solid::frame::mprpc::MessagePointerT<myapps::front::FetchBuildConfigurationResponse>");
+    qRegisterMetaType<solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse>>("solid::frame::mprpc::MessagePointerT<myapps::front::FetchAppResponse>");
 
     setWindowFlags(windowFlags() & (~Qt::WindowMaximizeButtonHint));
 
@@ -459,9 +459,9 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     connect(pimpl_->list_form_.listView, SIGNAL(doubleClicked(const QModelIndex&)), this, SLOT(onItemDoubleClicked(const QModelIndex&)));
     connect(pimpl_->item_form_.acquire_button, SIGNAL(toggled(bool)), this, SLOT(onAquireButtonToggled(bool)));
 
-    connect(this, SIGNAL(itemData(int, std::shared_ptr<myapps::front::FetchBuildConfigurationResponse>)), this, SLOT(itemDataSlot(int, std::shared_ptr<myapps::front::FetchBuildConfigurationResponse>)), Qt::QueuedConnection);
+    connect(this, SIGNAL(itemData(int, solid::frame::mprpc::MessagePointerT<myapps::front::FetchBuildConfigurationResponse>)), this, SLOT(itemDataSlot(int, solid::frame::mprpc::MessagePointerT<myapps::front::FetchBuildConfigurationResponse>)), Qt::QueuedConnection);
 
-    connect(this, SIGNAL(itemEntries(int, std::shared_ptr<myapps::front::FetchAppResponse>)), this, SLOT(itemEntriesSlot(int, std::shared_ptr<myapps::front::FetchAppResponse>)), Qt::QueuedConnection);
+    connect(this, SIGNAL(itemEntries(int, solid::frame::mprpc::MessagePointerT<myapps::front::FetchAppResponse>)), this, SLOT(itemEntriesSlot(int, solid::frame::mprpc::MessagePointerT<myapps::front::FetchAppResponse>)), Qt::QueuedConnection);
 
     connect(this, SIGNAL(itemAcquire(int, bool)), this, SLOT(itemAcquireSlot(int, bool)), Qt::QueuedConnection);
 
@@ -703,13 +703,13 @@ void MainWindow::showItem(int _index)
 
     pimpl_->engine().fetchItemEntries(
         item.engine_index_,
-        [this, index = _index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
+        [this, index = _index](solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse>& _response_ptr) {
             // called on another thread - need to move the data onto GUI thread
             emit itemEntries(index, _response_ptr);
         });
 }
 
-void MainWindow::itemDataSlot(int _index, std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse> _response_ptr)
+void MainWindow::itemDataSlot(int _index, solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse> _response_ptr)
 {
     if (_response_ptr && _response_ptr->error_ == 0) {
         auto& item     = pimpl_->list_model_.item(_index);
@@ -766,7 +766,7 @@ const char* build_status_to_image_name(const myapps::utility::AppItemStateE _sta
     }
 }
 
-void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<myapps::front::main::FetchAppResponse> _response_ptr)
+void MainWindow::itemEntriesSlot(int _index, solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse> _response_ptr)
 {
     using namespace myapps::utility;
 
@@ -869,7 +869,7 @@ void MainWindow::itemEntriesSlot(int _index, std::shared_ptr<myapps::front::main
     }
 }
 
-void MainWindow::prepareConfigureForm(int _index, std::shared_ptr<myapps::front::main::FetchAppResponse> _response_ptr)
+void MainWindow::prepareConfigureForm(int _index, solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse> _response_ptr)
 {
     pimpl_->configure_form_.treeWidget->setColumnCount(1);
     pimpl_->configure_form_.treeWidget->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -1168,12 +1168,12 @@ void MainWindow::buildChangedSlot(int _index)
                 pimpl_->engine().changeAppItemState(
                     item.engine_index_,
                     entry, static_cast<int>(AppItemStateE::ReviewStarted),
-                    [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<myapps::front::core::Response>& _response_ptr) {
+                    [this, index = pimpl_->current_item_, engine_index = item.engine_index_](solid::frame::mprpc::MessagePointerT<myapps::front::core::Response>& _response_ptr) {
                         solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
                         pimpl_->engine().fetchItemEntries(
                             engine_index,
-                            [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
+                            [this, index](solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse>& _response_ptr) {
                                 // called on another thread - need to move the data onto GUI thread
                                 emit itemEntries(index, _response_ptr);
                             });
@@ -1197,7 +1197,7 @@ void MainWindow::buildChangedSlot(int _index)
         pimpl_->engine().fetchItemData(
             item.engine_index_,
             build_id,
-            [this, index = pimpl_->current_item_](std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse>& _response_ptr) {
+            [this, index = pimpl_->current_item_](solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse>& _response_ptr) {
                 // called on another thread - need to move the data onto GUI thread
                 emit itemData(index, _response_ptr);
             });
@@ -1339,12 +1339,12 @@ void MainWindow::configureStateChangedSlot(int _index)
         pimpl_->engine().changeAppItemState(
             item.engine_index_,
             item_entry, req_state,
-            [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<myapps::front::core::Response>& _response_ptr) {
+            [this, index = pimpl_->current_item_, engine_index = item.engine_index_](solid::frame::mprpc::MessagePointerT<myapps::front::core::Response>& _response_ptr) {
                 solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
                 pimpl_->engine().fetchItemEntries(
                     engine_index,
-                    [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
+                    [this, index](solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse>& _response_ptr) {
                         // called on another thread - need to move the data onto GUI thread
                         emit itemEntries(index, _response_ptr);
                     });
@@ -1371,12 +1371,12 @@ void MainWindow::onReviewAcceptButtonClicked(bool _checked)
     pimpl_->engine().changeAppItemState(
         item.engine_index_,
         entry, static_cast<int>(AppItemStateE::ReviewAccepted),
-        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<myapps::front::core::Response>& _response_ptr) {
+        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](solid::frame::mprpc::MessagePointerT<myapps::front::core::Response>& _response_ptr) {
             solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
             pimpl_->engine().fetchItemEntries(
                 engine_index,
-                [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
+                [this, index](solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse>& _response_ptr) {
                     // called on another thread - need to move the data onto GUI thread
                     emit itemEntries(index, _response_ptr);
                 });
@@ -1395,12 +1395,12 @@ void MainWindow::onReviewRejectButtonClicked(bool _checked)
     pimpl_->engine().changeAppItemState(
         item.engine_index_,
         entry, static_cast<int>(AppItemStateE::ReviewRejected),
-        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](std::shared_ptr<myapps::front::core::Response>& _response_ptr) {
+        [this, index = pimpl_->current_item_, engine_index = item.engine_index_](solid::frame::mprpc::MessagePointerT<myapps::front::core::Response>& _response_ptr) {
             solid_log(logger, Verbose, "ChangeAppItemState response: " << _response_ptr->error_ << " message: " << _response_ptr->message_);
 
             pimpl_->engine().fetchItemEntries(
                 engine_index,
-                [this, index](std::shared_ptr<myapps::front::main::FetchAppResponse>& _response_ptr) {
+                [this, index](solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse>& _response_ptr) {
                     // called on another thread - need to move the data onto GUI thread
                     emit itemEntries(index, _response_ptr);
                 });

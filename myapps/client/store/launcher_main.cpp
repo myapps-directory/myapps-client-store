@@ -79,7 +79,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
     //add a variable to the current environment
     boost::filesystem::path qt_path = compute_qt_path();
     vector<wstring>         args;
-    auto&                   env_path = env["Path"];
+    auto                   env_path = env["Path"];
     auto                    path_vec = env_path.to_vector();
     string                  bin_path;
 

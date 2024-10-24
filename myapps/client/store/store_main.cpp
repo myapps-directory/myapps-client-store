@@ -183,15 +183,15 @@ struct Authenticator {
 
     void onAuthFileChange();
 
-    std::shared_ptr<core::AuthRequest> loadAuth(string& _rendpoint)
+    solid::frame::mprpc::MessagePointerT<core::AuthRequest> loadAuth(string& _rendpoint)
     {
         string user, token;
         if (loadAuth(_rendpoint, user, token)) {
-            auto ptr   = make_shared<core::AuthRequest>();
+            auto ptr   = frame::mprpc::make_message<core::AuthRequest>();
             ptr->pass_ = token;
             return ptr;
         } else {
-            return nullptr;
+            return {};
         }
     }
 
@@ -201,8 +201,8 @@ struct Authenticator {
 
     void onAuthResponse(
         frame::mprpc::ConnectionContext&      _rctx,
-        std::shared_ptr<core::AuthRequest>&  _rsent_msg_ptr,
-        std::shared_ptr<core::AuthResponse>& _rrecv_msg_ptr,
+        solid::frame::mprpc::MessagePointerT<core::AuthRequest>&  _rsent_msg_ptr,
+        solid::frame::mprpc::MessagePointerT<core::AuthResponse>& _rrecv_msg_ptr,
         ErrorConditionT const&                _rerror);
 };
 
@@ -311,7 +311,7 @@ int main(int argc, char* argv[])
     frame::Manager               manager;
     frame::ServiceT              service{manager};
     frame::mprpc::ServiceT       front_rpc_service{manager};
-    CallPoolT                    cwp{1, 1000, 0, [](const size_t) {}, [](const size_t) {}};
+    CallPoolT                    cwp{{1, 1000, 0}, [](const size_t) {}, [](const size_t) {}};
     frame::aio::Resolver         resolver([&cwp](std::function<void()>&& _fnc) { cwp.pushOne(std::move(_fnc)); });
     client::utility::FileMonitor file_monitor_;
     Authenticator                authenticator(front_rpc_service, file_monitor_, env_config_path_prefix(), []() { QApplication::exit(); });
@@ -600,8 +600,8 @@ void Parameters::writeConfigurationFile(string _path, const boost::program_optio
 template <class M>
 void complete_message(
     frame::mprpc::ConnectionContext& _rctx,
-    std::shared_ptr<M>&              _rsent_msg_ptr,
-    std::shared_ptr<M>&              _rrecv_msg_ptr,
+    solid::frame::mprpc::MessagePointerT<M>&              _rsent_msg_ptr,
+    solid::frame::mprpc::MessagePointerT<M>&              _rrecv_msg_ptr,
     ErrorConditionT const&           _rerror)
 {
     //solid_check(false); //this method should not be called
@@ -665,11 +665,11 @@ void front_configure_service(Authenticator& _rauth, const Parameters& _params, f
 
 void Authenticator::onConnectionStart(frame::mprpc::ConnectionContext& _ctx)
 {
-    auto req_ptr = std::make_shared<store::InitRequest>();
+    auto req_ptr = frame::mprpc::make_message<store::InitRequest>();
     auto lambda  = [this](
                       frame::mprpc::ConnectionContext&      _rctx,
-                      std::shared_ptr<store::InitRequest>&  _rsent_msg_ptr,
-                      std::shared_ptr<core::InitResponse>& _rrecv_msg_ptr,
+                      solid::frame::mprpc::MessagePointerT<store::InitRequest>&  _rsent_msg_ptr,
+                      solid::frame::mprpc::MessagePointerT<core::InitResponse>& _rrecv_msg_ptr,
                       ErrorConditionT const&                _rerror) {
         if (_rrecv_msg_ptr) {
             if (_rrecv_msg_ptr->error_ == 0) {
@@ -711,8 +711,8 @@ void Authenticator::onAuthFileChange()
                 if (auth_ptr) {
                     auto lambda = [this](
                         frame::mprpc::ConnectionContext& _rctx,
-                        std::shared_ptr<core::AuthRequest>& _rsent_msg_ptr,
-                        std::shared_ptr<core::AuthResponse>& _rrecv_msg_ptr,
+                        solid::frame::mprpc::MessagePointerT<core::AuthRequest>& _rsent_msg_ptr,
+                        solid::frame::mprpc::MessagePointerT<core::AuthResponse>& _rrecv_msg_ptr,
                         ErrorConditionT const& _rerror) {
                             onAuthResponse(_rctx, _rsent_msg_ptr, _rrecv_msg_ptr, _rerror);
                     };
@@ -749,8 +749,8 @@ void Authenticator::onConnectionInit(frame::mprpc::ConnectionContext& _rctx)
         if (auth_ptr) {
             auto lambda = [this](
                               frame::mprpc::ConnectionContext&      _rctx,
-                              std::shared_ptr<core::AuthRequest>&  _rsent_msg_ptr,
-                              std::shared_ptr<core::AuthResponse>& _rrecv_msg_ptr,
+                              solid::frame::mprpc::MessagePointerT<core::AuthRequest>&  _rsent_msg_ptr,
+                              solid::frame::mprpc::MessagePointerT<core::AuthResponse>& _rrecv_msg_ptr,
                               ErrorConditionT const&                _rerror) {
                 onAuthResponse(_rctx, _rsent_msg_ptr, _rrecv_msg_ptr, _rerror);
             };
@@ -771,8 +771,8 @@ void Authenticator::onConnectionStop(frame::mprpc::ConnectionContext& _rctx)
 
 void Authenticator::onAuthResponse(
     frame::mprpc::ConnectionContext&      _rctx,
-    std::shared_ptr<core::AuthRequest>&  _rsent_msg_ptr,
-    std::shared_ptr<core::AuthResponse>& _rrecv_msg_ptr,
+    solid::frame::mprpc::MessagePointerT<core::AuthRequest>&  _rsent_msg_ptr,
+    solid::frame::mprpc::MessagePointerT<core::AuthResponse>& _rrecv_msg_ptr,
     ErrorConditionT const&                _rerror)
 {
     if (!_rrecv_msg_ptr) {

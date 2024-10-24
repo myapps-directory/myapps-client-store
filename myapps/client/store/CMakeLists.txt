@@ -80,7 +80,7 @@ if(${Qt6Widgets_FOUND})
             install(DIRECTORY $<TARGET_FILE_DIR:myapps_store>//windeployqt/ DESTINATION bin PATTERN "windeployqt/*")
         endif()
 
-       if(FALSE)
+       if(TRUE)
             add_executable(
                 myapps_launcher
                 WIN32

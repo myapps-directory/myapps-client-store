@@ -51,19 +51,19 @@ class Engine{
     struct Implementation;
     solid::PimplT<Implementation> pimpl_;
 public:
-    using OnFetchItemDataT = std::function<void(std::shared_ptr<myapps::front::main::FetchBuildConfigurationResponse>&)>;
-    using OnFetchAppItemsT = std::function<void(std::shared_ptr<myapps::front::main::FetchAppResponse>&)>;
+    using OnFetchItemDataT = std::function<void(solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse>&)>;
+    using OnFetchAppItemsT = std::function<void(solid::frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse>&)>;
     using OnAcquireItemT = std::function<void(bool)>;
-    using OnResponseT = std::function<void(std::shared_ptr<myapps::front::core::Response>&)>;
+    using OnResponseT = std::function<void(solid::frame::mprpc::MessagePointerT<myapps::front::core::Response>&)>;
 
     Engine(solid::frame::mprpc::ServiceT& _rrpc_service);
     ~Engine();
     void start(Configuration&& _rcfg);
     void stop();
     
-    void requestAquired(std::shared_ptr<front::main::ListAppsRequest> &_rreq_msg);
-    void requestOwned(std::shared_ptr<front::main::ListAppsRequest>& _rreq_msg);
-    void requestDefault(std::shared_ptr<front::main::ListAppsRequest>& _rreq_msg);
+    void requestAquired(solid::frame::mprpc::MessagePointerT<front::main::ListAppsRequest> &_rreq_msg);
+    void requestOwned(solid::frame::mprpc::MessagePointerT<front::main::ListAppsRequest>& _rreq_msg);
+    void requestDefault(solid::frame::mprpc::MessagePointerT<front::main::ListAppsRequest>& _rreq_msg);
 
     bool requestMore(const size_t _index, const size_t _count_hint);
 
