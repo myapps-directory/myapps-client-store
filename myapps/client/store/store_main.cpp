@@ -245,6 +245,7 @@ string env_config_path_prefix()
 }
 
 void prepare_application();
+string get_myapps_filesystem_path();
 
 } //namespace
 
@@ -341,6 +342,7 @@ int main(int argc, char* argv[])
         config.os_             = "Windows10x86_64";
         config.front_endpoint_ = params.front_endpoint;
         config.app_list_file_path_ = authenticator.appListFilePath();
+        config.myapps_fs_path_     = get_myapps_filesystem_path();
         if (config.front_endpoint_.empty()) {
             lock_guard<mutex> lock(authenticator.mutex_);
             string user;
@@ -407,6 +409,12 @@ namespace {
 //-----------------------------------------------------------------------------
 string Parameters::configPath(const std::string& _path_prefix)const {
     return _path_prefix + "\\config\\" + string(service_name) + ".config";
+}
+//-----------------------------------------------------------------------------
+string get_myapps_filesystem_path()
+{
+    static const string home_path = getenv("USERPROFILE");
+    return home_path + "\\MyApps.space";
 }
 //-----------------------------------------------------------------------------
 boost::program_options::variables_map Parameters::bootstrapCommandLine(ULONG argc, PWSTR* argv)

@@ -89,7 +89,8 @@ public:
     string localMediaPath(const string& _path, const uint32_t _shard_id, const string& _storage_id) const
     {
         //TODO:
-        return "c:\\MyApps.space\\.m\\" + to_string(_shard_id) + "\\" + myapps::utility::hex_encode(_storage_id) + '\\' + _path;
+        //return "c:\\MyApps.space\\.m\\" + to_string(_shard_id) + "\\" + myapps::utility::hex_encode(_storage_id) + '\\' + _path;
+        return config_.myapps_fs_path_ + "\\.m\\" + to_string(_shard_id) + "\\" + myapps::utility::hex_encode(_storage_id) + '\\' + _path;
     }
 };
 

@@ -41,6 +41,7 @@ struct Configuration{
     std::string       front_endpoint_;
     std::string       os_;
     std::string       language_;
+    std::string             myapps_fs_path_;
     boost::filesystem::path       app_list_file_path_;
     size_t            start_fetch_count_ = 10;
     OnFetchFunctionT  on_fetch_fnc_;
