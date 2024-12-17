@@ -2,18 +2,18 @@ name: windows
 tag: r1.3
 dictionary:
   - language: en-US
-    name: MyApps.space Store
+    name: MyApps.directory Store
     description: |
-        Online Store for MyApps.space applications.
-    brief: Online Store for MyApps.space.
-    company: "MyApps.space"
+        Online Store for MyApps.directory applications.
+    brief: Online Store for MyApps.directory.
+    company: "MyApps.directory"
   - language: ro-RO
-    name: Magazin MyApps.space
+    name: Magazin MyApps.directory
     description: |
-        Magazin on-line de aplicații MyApps.space.
+        Magazin on-line de aplicații MyApps.directory.
     brief: |
-        Magazin on-line de aplicații MyApps.space.
-    company: "MyApps.space"
+        Magazin on-line de aplicații MyApps.directory.
+    company: "MyApps.directory"
 properties:
   name: ${name}
   description: ${description}

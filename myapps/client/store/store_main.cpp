@@ -28,9 +28,9 @@
 
 #include "solid/frame/mprpc/mprpccompression_snappy.hpp"
 #include "solid/frame/mprpc/mprpcconfiguration.hpp"
+#include "solid/frame/mprpc/mprpcprotocol_serialization_v3.hpp"
 #include "solid/frame/mprpc/mprpcservice.hpp"
 #include "solid/frame/mprpc/mprpcsocketstub_openssl.hpp"
-#include "solid/frame/mprpc/mprpcprotocol_serialization_v3.hpp"
 
 #include "solid/utility/threadpool.hpp"
 
@@ -73,7 +73,7 @@ namespace fs = boost::filesystem;
 namespace {
 
 constexpr string_view service_name("myapps_client_store");
-const solid::LoggerT logger("myapps::client::store");
+const solid::LoggerT  logger("myapps::client::store");
 
 using AioSchedulerT = frame::Scheduler<frame::aio::Reactor<frame::mprpc::EventT>>;
 using SchedulerT    = frame::Scheduler<frame::Reactor<Event<32>>>;
@@ -96,11 +96,11 @@ struct Parameters {
         return secure_prefix + '\\' + _name;
     }
 
-    string configPath(const string& _path_prefix)const;
+    string configPath(const string& _path_prefix) const;
 
-    bool parse(ULONG argc, PWSTR* argv);
+    bool                                  parse(ULONG argc, PWSTR* argv);
     boost::program_options::variables_map bootstrapCommandLine(ULONG argc, PWSTR* argv);
-    void writeConfigurationFile(string _path, const boost::program_options::options_description& _od, const boost::program_options::variables_map& _vm)const;
+    void                                  writeConfigurationFile(string _path, const boost::program_options::options_description& _od, const boost::program_options::variables_map& _vm) const;
 };
 
 struct Authenticator {
@@ -200,15 +200,15 @@ struct Authenticator {
     void onConnectionStop(frame::mprpc::ConnectionContext& _ctx);
 
     void onAuthResponse(
-        frame::mprpc::ConnectionContext&      _rctx,
+        frame::mprpc::ConnectionContext&                          _rctx,
         solid::frame::mprpc::MessagePointerT<core::AuthRequest>&  _rsent_msg_ptr,
         solid::frame::mprpc::MessagePointerT<core::AuthResponse>& _rrecv_msg_ptr,
-        ErrorConditionT const&                _rerror);
+        ErrorConditionT const&                                    _rerror);
 };
 
 void front_configure_service(Authenticator& _rauth, const Parameters& _params, frame::mprpc::ServiceT& _rsvc, AioSchedulerT& _rsch, frame::aio::Resolver& _rres);
 
-//TODO: find a better name
+// TODO: find a better name
 
 string env_log_path_prefix()
 {
@@ -221,7 +221,7 @@ string env_log_path_prefix()
     }
 
     string r = v;
-    r += "\\MyApps.space\\client";
+    r += "\\MyApps.dir\\client";
     return r;
 }
 
@@ -237,17 +237,17 @@ string env_config_path_prefix()
     }
 
     string r = v;
-    r += "\\MyApps.space";
+    r += "\\MyApps.dir";
     return r;
 #else
-    return get_home_env() + "/.myapps.space";
+    return get_home_env() + "/.myapps.dir";
 #endif
 }
 
-void prepare_application();
+void   prepare_application();
 string get_myapps_filesystem_path();
 
-} //namespace
+} // namespace
 
 //-----------------------------------------------------------------------------
 //      main
@@ -263,7 +263,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
     {
         const auto m_singleInstanceMutex = CreateMutex(NULL, TRUE, L"MYAPPS_STORE_SHARED_MUTEX");
         if (m_singleInstanceMutex == NULL || GetLastError() == ERROR_ALREADY_EXISTS) {
-            HWND existingApp = FindWindow(0, L"MyApps.space Store");
+            HWND existingApp = FindWindow(0, L"MyApps.directory Store");
             if (existingApp) {
                 SetForegroundWindow(existingApp);
             }
@@ -302,9 +302,9 @@ int main(int argc, char* argv[])
 
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
-    //QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+    // QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 
-    QApplication                 app(argc, argv);
+    QApplication app(argc, argv);
 
     app.setStyle("fusion");
 
@@ -320,12 +320,12 @@ int main(int argc, char* argv[])
     MainWindow                   main_window(engine);
 
     authenticator.on_offline_fnc_ = [&main_window]() {
-        //main_window.setWindowTitle(QApplication::tr("MyApps.space Store - Offline"));
+        // main_window.setWindowTitle(QApplication::tr("MyApps.directory Store - Offline"));
         main_window.onlineSignal(false);
     };
 
     authenticator.on_online_fnc_ = [&main_window]() {
-        //main_window.setWindowTitle(QApplication::tr("MyApps.space Store"));
+        // main_window.setWindowTitle(QApplication::tr("MyApps.directory Store"));
         main_window.onlineSignal(true);
     };
 
@@ -333,20 +333,20 @@ int main(int argc, char* argv[])
     aioscheduler.start(1);
 
     main_window.setWindowIcon(app.style()->standardIcon(QStyle::SP_DesktopIcon));
-    main_window.setWindowTitle(QApplication::tr("MyApps.space Store"));
+    main_window.setWindowTitle(QApplication::tr("MyApps.directory Store"));
 
     front_configure_service(authenticator, params, front_rpc_service, aioscheduler, resolver);
     {
         Configuration config;
-        config.language_       = "en-US";
-        config.os_             = "Windows10x86_64";
-        config.front_endpoint_ = params.front_endpoint;
+        config.language_           = "en-US";
+        config.os_                 = "Windows10x86_64";
+        config.front_endpoint_     = params.front_endpoint;
         config.app_list_file_path_ = authenticator.appListFilePath();
         config.myapps_fs_path_     = get_myapps_filesystem_path();
         if (config.front_endpoint_.empty()) {
             lock_guard<mutex> lock(authenticator.mutex_);
-            string user;
-            string token;
+            string            user;
+            string            token;
             if (!authenticator.loadAuth(config.front_endpoint_, user, token)) {
                 return 0;
             }
@@ -362,7 +362,7 @@ int main(int argc, char* argv[])
                                    string&&       _ubrief,
                                    string&&       _ubuild_id,
                                    vector<char>&& _uimage,
-                                   const uint32_t  _flags) {
+                                   const uint32_t _flags) {
             cwp.pushOne(
                 [_index, _count, &main_window, name = std::move(_uname), company = std::move(_ucompany), brief = std::move(_ubrief), build_id = std::move(_ubuild_id), image = std::move(_uimage), _flags]() {
                     main_window.model().prepareAndPushItem(_index, _count, name, company, brief, build_id, image, _flags);
@@ -383,7 +383,7 @@ int main(int argc, char* argv[])
     main_window.setWindowIcon(QIcon(":/images/store_bag.ico"));
     main_window.show();
 
-    SetWindowText(GetActiveWindow(), L"MyApps.space Store");
+    SetWindowText(GetActiveWindow(), L"MyApps.directory Store");
 
     const int rv = app.exec();
     front_rpc_service.stop();
@@ -392,13 +392,13 @@ int main(int argc, char* argv[])
 //-----------------------------------------------------------------------------
 
 namespace std {
-    std::ostream& operator<<(std::ostream& os, const std::vector<string>& vec)
-    {
-        for (auto item : vec) {
-            os << item << ",";
-        }
-        return os;
+std::ostream& operator<<(std::ostream& os, const std::vector<string>& vec)
+{
+    for (auto item : vec) {
+        os << item << ",";
     }
+    return os;
+}
 } // namespace std
 
 //-----------------------------------------------------------------------------
@@ -407,20 +407,21 @@ namespace {
 //-----------------------------------------------------------------------------
 // Parameters
 //-----------------------------------------------------------------------------
-string Parameters::configPath(const std::string& _path_prefix)const {
+string Parameters::configPath(const std::string& _path_prefix) const
+{
     return _path_prefix + "\\config\\" + string(service_name) + ".config";
 }
 //-----------------------------------------------------------------------------
 string get_myapps_filesystem_path()
 {
     static const string home_path = getenv("USERPROFILE");
-    return home_path + "\\MyApps.space";
+    return home_path + "\\MyApps.dir";
 }
 //-----------------------------------------------------------------------------
 boost::program_options::variables_map Parameters::bootstrapCommandLine(ULONG argc, PWSTR* argv)
 {
     using namespace boost::program_options;
-    boost::program_options::options_description desc{ "Bootstrap Options" };
+    boost::program_options::options_description desc{"Bootstrap Options"};
     // clang-format off
     desc.add_options()
         ("version,v", "Version string")
@@ -462,7 +463,7 @@ bool Parameters::parse(ULONG argc, PWSTR* argv)
             ("compress", value<bool>(&compress)->implicit_value(true)->default_value(false), "Use Snappy to compress communication")
             ("secure-prefix", value<std::string>(&secure_prefix)->default_value("certs"), "Secure Path prefix")
             ("path-prefix", value<std::string>(&path_prefix)->default_value(env_config_path_prefix()), "Path prefix")
-            ("front,f", value<std::string>(&front_endpoint)->default_value(""), "MyApps.space Front Endpoint")
+            ("front,f", value<std::string>(&front_endpoint)->default_value(""), "MyApps.directory Front Endpoint")
             ;
         // clang-format off
 
@@ -638,7 +639,7 @@ void front_configure_service(Authenticator& _rauth, const Parameters& _params, f
     cfg.client.name_resolve_fnc = frame::mprpc::InternetResolverF(_rres, myapps::front::default_port());
 
     cfg.client.connection_start_state     = frame::mprpc::ConnectionState::Passive;
-    cfg.client.connection_timeout_keepalive = std::chrono::seconds(10);
+    cfg.client.connection_timeout_keepalive = std::chrono::seconds(30);
     cfg.pool_max_active_connection_count  = 2;
     cfg.pool_max_pending_connection_count = 2;
 

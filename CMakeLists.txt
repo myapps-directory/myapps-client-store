@@ -41,7 +41,7 @@ else()
     set(CONFIGURATION_TYPE "release")
 endif()
 
-set(MYAPPS_FRONT_URL "front.myapps.space:443" CACHE STRING "MyApps.space Front Default URL")
+set(MYAPPS_FRONT_URL "front.myapps.directory:443" CACHE STRING "MyApps.dir Server Default URL")
 set(EXTRA_DEFINITIONS "${EXTRA_DEFINITIONS}" CACHE STRING "Extra compiler definitions")
 add_definitions(${EXTRA_DEFINITIONS})
 

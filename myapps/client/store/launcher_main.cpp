@@ -1,13 +1,13 @@
 #undef UNICODE
 #define UNICODE
 #undef _WINSOCKAPI_
-//#define _WINSOCKAPI_
+// #define _WINSOCKAPI_
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif #undef UNICODE
 #define UNICODE
 #undef _WINSOCKAPI_
-//#define _WINSOCKAPI_
+// #define _WINSOCKAPI_
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -76,23 +76,23 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
     char*   argv[1] = {GetCommandLineA()};
 
     auto env = boost::this_process::native_environment();
-    //add a variable to the current environment
+    // add a variable to the current environment
     boost::filesystem::path qt_path = compute_qt_path();
     vector<wstring>         args;
-    auto                   env_path = env["Path"];
+    auto                    env_path = env["Path"];
     auto                    path_vec = env_path.to_vector();
     string                  bin_path;
 
     {
-        assert(matches("c:\\users\\test\\something\\MyApps.space\\bin", "MyApps.space\\bin"));
-        assert(!matches("c:\\users\\MyApps.space\\bin\\something\\MyApps.Space\\bin", "MyApps.space\\bin"));
+        assert(matches("c:\\users\\test\\something\\MyApps.dir\\bin", "MyApps.dir\\bin"));
+        assert(!matches("c:\\users\\MyApps.dir\\bin\\something\\MyApps.dir\\bin", "MyApps.dir\\bin"));
     }
 
     {
         string new_paths;
-        //we need to put the new qt_path before the myapps/bin path
+        // we need to put the new qt_path before the myapps/bin path
         for (const auto& p : path_vec) {
-            if (matches(p, "MyApps.space\\bin")) {
+            if (matches(p, "MyApps.dir\\bin")) {
                 if (!new_paths.empty()) {
                     new_paths += ';';
                 }
@@ -113,7 +113,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
         }
 
         if (bin_path.empty()) {
-            //myapps path not found,
+            // myapps path not found,
             env_path.append(qt_path.string());
         } else if (!qt_path.empty()) {
             env_path.assign(new_paths);
@@ -122,17 +122,17 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
     {
         string qt_plugin_path = qt_path.string();
         if (!qt_plugin_path.empty()) {
-            //if (qt_plugin_path.back() != '\\') {
-            //    qt_plugin_path += '\\';
-            //}
-            //qt_plugin_path += "plugins";
+            // if (qt_plugin_path.back() != '\\') {
+            //     qt_plugin_path += '\\';
+            // }
+            // qt_plugin_path += "plugins";
             env["QT_PLUGIN_PATH"].assign(qt_plugin_path);
         } else if (!bin_path.empty()) {
             qt_plugin_path = bin_path;
-            //if (qt_plugin_path.back() != '\\') {
-            //    qt_plugin_path += '\\';
-            //}
-            //qt_plugin_path += "plugins";
+            // if (qt_plugin_path.back() != '\\') {
+            //     qt_plugin_path += '\\';
+            // }
+            // qt_plugin_path += "plugins";
             env["QT_PLUGIN_PATH"].assign(qt_plugin_path);
         }
     }

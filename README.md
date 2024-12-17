@@ -1,5 +1,5 @@
 # myapps-client-store
-MyApps.space client Store application
+MyApps.directory client Store application
 
 
 ```BASH

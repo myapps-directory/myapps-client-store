@@ -13,10 +13,10 @@
 #include <QMenu>
 #include <QPainter>
 #include <QScrollBar>
+#include <QStyleHints>
 #include <QTextLayout>
 #include <QToolBar>
 #include <QToolButton>
-#include <QStyleHints>
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
@@ -75,12 +75,10 @@ struct MainWindow::Data {
     QString           config_current_build_;
     QString           config_current_media_;
 
-
     static bool isColorSchemeDark()
     {
         return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
     }
-    
 
     Data(Engine& _rengine, MainWindow* _pw)
         : list_model_(_rengine, sizes_)
@@ -435,7 +433,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
     pimpl_->about_form_.image_label->setPixmap(QPixmap(":/images/store_bag.png"));
     pimpl_->store_form_.statusbar->showMessage(tr("Offline"));
     // setWindowFlags(Qt::Drawer);
-    if(false){
+    if (false) {
         int   aElements[2] = {COLOR_WINDOW, COLOR_ACTIVECAPTION};
         DWORD aOldColors[2];
 
@@ -541,7 +539,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
         });
 
     pimpl_->about_form_.tabWidget->setCurrentIndex(0);
-    pimpl_->about_form_.label_title->setText("MyApps.space Store");
+    pimpl_->about_form_.label_title->setText("MyApps.directory Store");
     {
         using namespace std;
         ostringstream oss;
@@ -596,11 +594,11 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
         }
         {
             ostringstream oss;
-            oss << "MyApps.space Store, uses the LGPL, unchanged version of <a href=https://www.qt.io>Qt</a>" << endl
+            oss << "MyApps.directory Store, uses the LGPL, unchanged version of <a href=https://www.qt.io>Qt</a>" << endl
                 << endl;
             oss << "It uses the Qt libraries installed by the related open source project - <a href=https://github.com/myapps-space/myapps-client>MyApps.store Client</a>" << endl
                 << endl;
-            oss << "In order to use MyApps.space Store application with your own Qt libraries, please follow the below steps:" << endl;
+            oss << "In order to use MyApps.directory Store application with your own Qt libraries, please follow the below steps:" << endl;
             oss << " * Step 1" << endl;
             oss << " * Step 2" << endl;
             oss << " * Step 3" << endl;

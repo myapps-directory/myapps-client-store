@@ -1,8 +1,8 @@
 #include "store_engine.hpp"
+#include "myapps/client/utility/app_list_file.hpp"
 #include "myapps/common/utility/encode.hpp"
 #include "solid/system/log.hpp"
 #include <unordered_map>
-#include "myapps/client/utility/app_list_file.hpp"
 
 #include <deque>
 
@@ -64,7 +64,7 @@ struct Equal {
 using ApplicationDequeT = std::deque<ApplicationStub>;
 using AtomicSizeT       = std::atomic<size_t>;
 using ApplicationMapT   = std::unordered_map<const std::reference_wrapper<const string>, size_t, Hash, Equal>;
-using AppListFileT = myapps::client::utility::AppListFile;
+using AppListFileT      = myapps::client::utility::AppListFile;
 
 struct Engine::Implementation {
     Configuration           config_;
@@ -88,8 +88,8 @@ public:
 
     string localMediaPath(const string& _path, const uint32_t _shard_id, const string& _storage_id) const
     {
-        //TODO:
-        //return "c:\\MyApps.space\\.m\\" + to_string(_shard_id) + "\\" + myapps::utility::hex_encode(_storage_id) + '\\' + _path;
+        // TODO:
+        // return "c:\\MyApps.dir\\.m\\" + to_string(_shard_id) + "\\" + myapps::utility::hex_encode(_storage_id) + '\\' + _path;
         return config_.myapps_fs_path_ + "\\.m\\" + to_string(_shard_id) + "\\" + myapps::utility::hex_encode(_storage_id) + '\\' + _path;
     }
 };
@@ -107,18 +107,17 @@ void Engine::start(Configuration&& _rcfg)
 {
     pimpl_->config(std::move(_rcfg));
 
-
     pimpl_->app_list_file_.load(pimpl_->config_.app_list_file_path_);
 
     auto req_ptr = frame::mprpc::make_message<front::main::ListAppsRequest>();
     solid_log(logger, Info, "Request all Applications");
-    //A - all applications
+    // A - all applications
     req_ptr->choice_ = 'A';
     auto lambda      = [this](
-                      frame::mprpc::ConnectionContext&          _rctx,
+                      frame::mprpc::ConnectionContext&                              _rctx,
                       frame::mprpc::MessagePointerT<front::main::ListAppsRequest>&  _rsent_msg_ptr,
                       frame::mprpc::MessagePointerT<front::main::ListAppsResponse>& _rrecv_msg_ptr,
-                      ErrorConditionT const&                    _rerror) {
+                      ErrorConditionT const&                                        _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             for (auto& app : _rrecv_msg_ptr->app_vec_) {
                 pimpl_->app_dq_.emplace_back(std::move(app.id_), std::move(app.unique_));
@@ -139,8 +138,6 @@ void Engine::start(Configuration&& _rcfg)
         }
     };
     pimpl_->rrpc_service_.sendRequest({pimpl_->config_.front_endpoint_}, req_ptr, lambda);
-
-
 }
 
 void Engine::stop()
@@ -151,13 +148,13 @@ void Engine::requestAquired(frame::mprpc::MessagePointerT<front::main::ListAppsR
 {
     auto req_ptr = std::move(_rreq_msg);
 
-    //a - aquired applications
+    // a - aquired applications
     req_ptr->choice_ = 'a';
     auto lambda      = [this](
-                      frame::mprpc::ConnectionContext&          _rctx,
+                      frame::mprpc::ConnectionContext&                              _rctx,
                       frame::mprpc::MessagePointerT<front::main::ListAppsRequest>&  _rsent_msg_ptr,
                       frame::mprpc::MessagePointerT<front::main::ListAppsResponse>& _rrecv_msg_ptr,
-                      ErrorConditionT const&                    _rerror) {
+                      ErrorConditionT const&                                        _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             for (auto& a : _rrecv_msg_ptr->app_vec_) {
                 const auto it = pimpl_->app_map_.find(a.unique_);
@@ -180,13 +177,13 @@ void Engine::requestDefault(frame::mprpc::MessagePointerT<front::main::ListAppsR
 {
     auto req_ptr = std::move(_rreq_msg);
 
-    //d - default applications
+    // d - default applications
     req_ptr->choice_ = 'd';
     auto lambda      = [this](
-                      frame::mprpc::ConnectionContext&          _rctx,
+                      frame::mprpc::ConnectionContext&                              _rctx,
                       frame::mprpc::MessagePointerT<front::main::ListAppsRequest>&  _rsent_msg_ptr,
                       frame::mprpc::MessagePointerT<front::main::ListAppsResponse>& _rrecv_msg_ptr,
-                      ErrorConditionT const&                    _rerror) {
+                      ErrorConditionT const&                                        _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             for (auto& a : _rrecv_msg_ptr->app_vec_) {
                 const auto it = pimpl_->app_map_.find(a.unique_);
@@ -221,26 +218,25 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
     }
     for (size_t i = _index; i < last_index; ++i) {
 
-        auto req_ptr = frame::mprpc::make_message<myapps::front::main::FetchBuildConfigurationRequest>();
+        auto   req_ptr = frame::mprpc::make_message<myapps::front::main::FetchBuildConfigurationRequest>();
         string build_request;
         {
             lock_guard<mutex> lock(pimpl_->mutex_);
             req_ptr->application_id_ = pimpl_->app_dq_[i].app_id_;
-            build_request = pimpl_->app_list_file_.find(pimpl_->app_dq_[i].app_uid_).name_;
+            build_request            = pimpl_->app_list_file_.find(pimpl_->app_dq_[i].app_uid_).name_;
         }
 
-
         auto lambda = [this, i, build_request](
-                          frame::mprpc::ConnectionContext&                              _rctx,
+                          frame::mprpc::ConnectionContext&                                                     _rctx,
                           frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
                           frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
-                          ErrorConditionT const&                                        _rerror) mutable {
+                          ErrorConditionT const&                                                               _rerror) mutable {
             if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
-                solid_log(logger, Info, "Response Application: " << _rrecv_msg_ptr->configuration_.property_vec_[0].second<< " "<< _rrecv_msg_ptr->image_blob_.size());
+                solid_log(logger, Info, "Response Application: " << _rrecv_msg_ptr->configuration_.property_vec_[0].second << " " << _rrecv_msg_ptr->image_blob_.size());
                 pimpl_->config_.on_fetch_fnc_(i, pimpl_->fetch_count_,
-                    std::move(_rrecv_msg_ptr->configuration_.property_vec_[0].second), //name
-                    std::move(_rrecv_msg_ptr->configuration_.property_vec_[1].second), //company
-                    std::move(_rrecv_msg_ptr->configuration_.property_vec_[2].second), //brief
+                    std::move(_rrecv_msg_ptr->configuration_.property_vec_[0].second), // name
+                    std::move(_rrecv_msg_ptr->configuration_.property_vec_[1].second), // company
+                    std::move(_rrecv_msg_ptr->configuration_.property_vec_[2].second), // brief
                     std::move(build_request),
                     std::move(_rrecv_msg_ptr->image_blob_),
                     pimpl_->app_dq_[i].flags_);
@@ -252,10 +248,9 @@ bool Engine::requestMore(const size_t _index, const size_t _count_hint)
                 pimpl_->config_.on_fetch_error_fnc_(i, pimpl_->fetch_count_);
             }
         };
-        
 
-        req_ptr->lang_  = pimpl_->config_.language_;
-        req_ptr->os_id_ = pimpl_->config_.os_;
+        req_ptr->lang_     = pimpl_->config_.language_;
+        req_ptr->os_id_    = pimpl_->config_.os_;
         req_ptr->build_id_ = build_request;
         if (req_ptr->build_id_ == myapps::utility::app_item_invalid) {
             req_ptr->build_id_.clear();
@@ -295,18 +290,17 @@ void Engine::onModelFetchedItems(size_t _model_index, size_t _engine_current_ind
     }
 }
 
-void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFetchItemDataT _fetch_fnc)
+void Engine::fetchItemData(const size_t _index, const string& _build_name, OnFetchItemDataT _fetch_fnc)
 {
     auto lambda = [this, _fetch_fnc](
-        frame::mprpc::ConnectionContext& _rctx,
-        frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationRequest>& _rsent_msg_ptr,
-        frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
-        ErrorConditionT const& _rerror) {
-        
+                      frame::mprpc::ConnectionContext&                                                     _rctx,
+                      frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationRequest>&  _rsent_msg_ptr,
+                      frame::mprpc::MessagePointerT<myapps::front::main::FetchBuildConfigurationResponse>& _rrecv_msg_ptr,
+                      ErrorConditionT const&                                                               _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             for (auto& e : _rrecv_msg_ptr->configuration_.media_.entry_vec_) {
                 e.thumbnail_path_ = pimpl_->localMediaPath(e.thumbnail_path_, _rrecv_msg_ptr->media_shard_id_, _rrecv_msg_ptr->media_storage_id_);
-                e.path_ = pimpl_->localMediaPath(e.path_, _rrecv_msg_ptr->media_shard_id_, _rrecv_msg_ptr->media_storage_id_);
+                e.path_           = pimpl_->localMediaPath(e.path_, _rrecv_msg_ptr->media_shard_id_, _rrecv_msg_ptr->media_storage_id_);
                 solid_log(logger, Info, "Thumbnail path: " << e.thumbnail_path_);
             }
         }
@@ -319,8 +313,8 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
         req_ptr->application_id_ = pimpl_->app_dq_[_index].app_id_;
     }
 
-    req_ptr->lang_  = pimpl_->config_.language_;
-    req_ptr->os_id_ = pimpl_->config_.os_;
+    req_ptr->lang_     = pimpl_->config_.language_;
+    req_ptr->os_id_    = pimpl_->config_.os_;
     req_ptr->build_id_ = _build_name;
 
     myapps::utility::Build::set_option(req_ptr->fetch_options_, myapps::utility::Build::FetchOptionsE::Image);
@@ -337,12 +331,11 @@ void Engine::fetchItemData(const size_t _index, const string &_build_name, OnFet
 void Engine::fetchItemEntries(const size_t _index, OnFetchAppItemsT _fetch_fnc)
 {
     auto lambda = [this, _fetch_fnc](
-        frame::mprpc::ConnectionContext& _rctx,
-        frame::mprpc::MessagePointerT<myapps::front::main::FetchAppRequest>& _rsent_msg_ptr,
-        frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse>& _rrecv_msg_ptr,
-        ErrorConditionT const& _rerror) {
-
-            _fetch_fnc(_rrecv_msg_ptr);
+                      frame::mprpc::ConnectionContext&                                      _rctx,
+                      frame::mprpc::MessagePointerT<myapps::front::main::FetchAppRequest>&  _rsent_msg_ptr,
+                      frame::mprpc::MessagePointerT<myapps::front::main::FetchAppResponse>& _rrecv_msg_ptr,
+                      ErrorConditionT const&                                                _rerror) {
+        _fetch_fnc(_rrecv_msg_ptr);
     };
 
     auto req_ptr = frame::mprpc::make_message<myapps::front::main::FetchAppRequest>();
@@ -359,10 +352,10 @@ void Engine::fetchItemEntries(const size_t _index, OnFetchAppItemsT _fetch_fnc)
 void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItemT _fetch_fnc)
 {
     auto lambda = [this, _fetch_fnc](
-                      frame::mprpc::ConnectionContext&                _rctx,
+                      frame::mprpc::ConnectionContext&                                       _rctx,
                       frame::mprpc::MessagePointerT<myapps::front::main::AcquireAppRequest>& _rsent_msg_ptr,
                       frame::mprpc::MessagePointerT<myapps::front::core::Response>&          _rrecv_msg_ptr,
-                      ErrorConditionT const&                          _rerror) {
+                      ErrorConditionT const&                                                 _rerror) {
         if (_rrecv_msg_ptr && _rrecv_msg_ptr->error_ == 0) {
             _fetch_fnc(_rsent_msg_ptr->acquire_);
         } else {
@@ -380,13 +373,13 @@ void Engine::acquireItem(const size_t _index, const bool _acquire, OnAcquireItem
     pimpl_->rrpc_service_.sendRequest({pimpl_->config_.front_endpoint_}, req_ptr, lambda);
 }
 
-void Engine::acquireBuild(const size_t _index, const std::string& _build_id) {
+void Engine::acquireBuild(const size_t _index, const std::string& _build_id)
+{
     lock_guard<mutex> lock(pimpl_->mutex_);
-    
+
     if (_build_id.empty()) {
         pimpl_->app_list_file_.erase(pimpl_->app_dq_[_index].app_uid_);
-    }
-    else {
+    } else {
         myapps::utility::AppItemEntry entry;
         entry.name_ = _build_id;
         pimpl_->app_list_file_.insert(pimpl_->app_dq_[_index].app_uid_, entry);
@@ -395,18 +388,17 @@ void Engine::acquireBuild(const size_t _index, const std::string& _build_id) {
 }
 
 void Engine::changeAppItemState(
-    const size_t _index,
+    const size_t                         _index,
     const myapps::utility::AppItemEntry& _app_item,
-    const uint8_t _req_state,
-    OnResponseT _on_response_fnc
-) {
+    const uint8_t                        _req_state,
+    OnResponseT                          _on_response_fnc)
+{
     auto lambda = [this, _on_response_fnc](
-        frame::mprpc::ConnectionContext& _rctx,
-        frame::mprpc::MessagePointerT<myapps::front::main::ChangeAppItemStateRequest>& _rsent_msg_ptr,
-        frame::mprpc::MessagePointerT<myapps::front::core::Response>& _rrecv_msg_ptr,
-        ErrorConditionT const& _rerror) {
-
-            _on_response_fnc(_rrecv_msg_ptr);
+                      frame::mprpc::ConnectionContext&                                               _rctx,
+                      frame::mprpc::MessagePointerT<myapps::front::main::ChangeAppItemStateRequest>& _rsent_msg_ptr,
+                      frame::mprpc::MessagePointerT<myapps::front::core::Response>&                  _rrecv_msg_ptr,
+                      ErrorConditionT const&                                                         _rerror) {
+        _on_response_fnc(_rrecv_msg_ptr);
     };
 
     auto req_ptr = frame::mprpc::make_message<myapps::front::main::ChangeAppItemStateRequest>();
@@ -415,13 +407,13 @@ void Engine::changeAppItemState(
         req_ptr->application_id_ = pimpl_->app_dq_[_index].app_id_;
     }
 
-    req_ptr->os_id_ = pimpl_->config_.os_;
-    req_ptr->item_ = _app_item;
+    req_ptr->os_id_     = pimpl_->config_.os_;
+    req_ptr->item_      = _app_item;
     req_ptr->new_state_ = _req_state;
 
     pimpl_->rrpc_service_.sendRequest({pimpl_->config_.front_endpoint_}, req_ptr, lambda);
 }
 
-} //namespace store
-} //namespace client
-} //namespace myapps
+} // namespace store
+} // namespace client
+} // namespace myapps
