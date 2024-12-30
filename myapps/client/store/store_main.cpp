@@ -642,6 +642,9 @@ void front_configure_service(Authenticator& _rauth, const Parameters& _params, f
     cfg.client.connection_timeout_keepalive = std::chrono::seconds(30);
     cfg.pool_max_active_connection_count  = 2;
     cfg.pool_max_pending_connection_count = 2;
+    cfg.connection_recv_buffer_start_capacity_kb = myapps::utility::client_connection_recv_buffer_start_capacity_kb;
+    cfg.connection_send_buffer_start_capacity_kb = myapps::utility::client_connection_send_buffer_start_capacity_kb;
+
 
     cfg.connection_stop_fnc = [&_rauth](frame::mprpc::ConnectionContext& _rctx) {
         _rauth.onConnectionStop(_rctx);
