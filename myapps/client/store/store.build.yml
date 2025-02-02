@@ -35,7 +35,7 @@ configurations:
       company: ${company}
     shortcuts:
       - name: ${name}
-        command: myapps_launcher.exe
+        command: myapps_store.exe
         icon: store_bag.ico
         arguments: ""
         run_folder: ""

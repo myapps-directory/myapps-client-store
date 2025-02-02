@@ -152,3 +152,9 @@ include(cmake/source-format.cmake)
 ###############################################################################
 
 
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION "bin")
+set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
+set(CMAKE_INSTALL_DEBUG_LIBRARIES TRUE)
+
+include(InstallRequiredSystemLibraries)
+

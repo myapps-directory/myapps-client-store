@@ -1,3 +1,21 @@
+// myapps/client/store/store_main.cpp
+
+// This file is part of MyApps.directory project
+// Copyright (C) 2020, 2021, 2022, 2023, 2024, 2025 Valentin Palade (vipalade @ gmail . com)
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 #undef UNICODE
 #define UNICODE
 #undef _WINSOCKAPI_
@@ -658,7 +676,7 @@ void front_configure_service(Authenticator& _rauth, const Parameters& _params, f
         frame::mprpc::openssl::setup_client(
             cfg,
             [_params](frame::aio::openssl::Context& _rctx) -> ErrorCodeT {
-                solid_log(logger, Info, "Secure path: " << _params.securePath("ola-ca-cert.pem"));
+                solid_log(logger, Error, "Secure path: " << _params.securePath("ola-ca-cert.pem"));
                 _rctx.loadVerifyFile(_params.securePath("ola-ca-cert.pem").c_str());
                 //_rctx.loadCertificateFile(_params.securePath("ola-client-front-cert.pem").c_str());
                 //_rctx.loadPrivateKeyFile(_params.securePath("ola-client-front-key.pem").c_str());

@@ -145,6 +145,24 @@ if(${Qt6Widgets_FOUND})
         ${SYS_DYNAMIC_LOAD_LIB}
     )
 
+    if(TARGET Qt6::windeployqt)
+        if(CMAKE_BUILD_TYPE MATCHES "debug")
+            set(BUILD_TYPE "--debug")
+        else()
+            set(BUILD_TYPE "--release")
+        endif()
+        # execute windeployqt in a tmp directory after build
+        add_custom_command(TARGET myapps_store
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:myapps_store>/windeployqt
+            COMMAND set PATH=%PATH%$<SEMICOLON>${qt6_install_prefix}/bin
+            COMMAND Qt6::windeployqt ${BUILD_TYPE} --dir $<TARGET_FILE_DIR:myapps_store>//windeployqt "$<TARGET_FILE_DIR:myapps_store>/$<TARGET_FILE_NAME:myapps_store>"
+        )
+
+        # copy deployment directory during installation
+        install(DIRECTORY $<TARGET_FILE_DIR:myapps_store>//windeployqt/ DESTINATION bin PATTERN "windeployqt/*")
+    endif()
+
     add_custom_command(TARGET myapps_store POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt6::Core> $<TARGET_FILE_DIR:myapps_store>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt6::Gui> $<TARGET_FILE_DIR:myapps_store>
@@ -155,4 +173,12 @@ if(${Qt6Widgets_FOUND})
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_CRYPTO_DLL} $<TARGET_FILE_DIR:myapps_store>
         COMMAND ${CMAKE_COMMAND} -DINFILE="${CMAKE_CURRENT_SOURCE_DIR}/upload.in"  -DOUTFILE=$<TARGET_FILE_DIR:myapps_store>/upload -DPROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}" -P "${CMAKE_SOURCE_DIR}/cmake/generic-configure-file.cmake"
     )
+
+    install(TARGETS myapps_store DESTINATION bin)
+    install(TARGETS myapps_launcher DESTINATION bin)
+    install(FILES ${OPENSSL_SSL_DLL} DESTINATION bin)
+    install(FILES ${OPENSSL_CRYPTO_DLL} DESTINATION bin)
+    install(FILES $<TARGET_FILE_DIR:myapps_store>/store.build.yml DESTINATION bin)
+    install(FILES $<TARGET_FILE_DIR:myapps_store>/upload DESTINATION bin)
+    install(DIRECTORY $<TARGET_FILE_DIR:myapps_store>/certs DESTINATION "bin")
 endif()
