@@ -3,7 +3,7 @@ cmake_policy(SET CMP0091 NEW)
 cmake_policy(SET CMP0115 NEW)
 cmake_policy(SET CMP0135 NEW)
 
-project(MyAppsStore VERSION 1.10)
+project(MyAppsStore VERSION 0.11)
 
 set(EXTERNAL_DIR "" CACHE PATH "External dependencies folder")
 

@@ -591,7 +591,7 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
             oss << " <a href=https://github.com/solidoss/solidframe>SolidFrame</a> - " << solid::VERSION_MAJOR << '.' << solid::VERSION_MINOR;
             oss << " - <a href=https://github.com/solidoss/solidframe/tree/" << solid::version_vcs_commit() << ">" << solid::version_vcs_commit() << "</a>" << endl;
             oss << endl;
-            oss << " <a href=https://www.qt.io>Qt</a>" << endl;
+            oss << " <a href=https://www.qt.io>Qt</a> (GPL)" << endl;
             oss << endl;
             oss << " <a href=https://www.boost.org>Boost</a>" << endl;
             oss << endl;
@@ -609,21 +609,6 @@ MainWindow::MainWindow(Engine& _rengine, QWidget* parent)
             oss << endl;
 
             pimpl_->about_form_.label_credits->setText(QString::fromStdString(oss.str()));
-        }
-        {
-            ostringstream oss;
-            oss << "MyApps.directory Store, uses the LGPL, unchanged version of <a href=https://www.qt.io>Qt</a>" << endl
-                << endl;
-            oss << "It uses the Qt libraries installed by the related open source project - <a href=https://github.com/myapps-space/myapps-client>MyApps.store Client</a>" << endl
-                << endl;
-            oss << "In order to use MyApps.directory Store application with your own Qt libraries, please follow the below steps:" << endl;
-            oss << " * Step 1" << endl;
-            oss << " * Step 2" << endl;
-            oss << " * Step 3" << endl;
-            oss << endl;
-            oss << "You can find a copy of the Qt source code here" << endl;
-
-            pimpl_->about_form_.label_qt->setText(QString::fromStdString(oss.str()));
         }
     }
 }
